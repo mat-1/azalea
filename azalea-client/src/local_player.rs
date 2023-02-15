@@ -17,9 +17,10 @@ use thiserror::Error;
 use tokio::{sync::mpsc, task::JoinHandle};
 use uuid::Uuid;
 
+use crate::client::ClientInformation;
 use crate::{
     events::{Event, LocalPlayerEvents},
-    ClientInformation, PlayerInfo, WalkDirection,
+    PlayerInfo, WalkDirection,
 };
 
 /// This is a component for our local player entities that are probably in a

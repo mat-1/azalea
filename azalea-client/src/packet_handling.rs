@@ -38,9 +38,10 @@ use tokio::sync::mpsc;
 
 use crate::{
     chat::{ChatPacket, ChatReceivedEvent},
+    client::ClientInformation,
     disconnect::DisconnectEvent,
     local_player::{GameProfileComponent, LocalPlayer},
-    ClientInformation, PlayerInfo,
+    PlayerInfo,
 };
 
 pub struct PacketHandlerPlugin;

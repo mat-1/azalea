@@ -5,7 +5,11 @@ mod events;
 pub mod prelude;
 
 use crate::{bot::DefaultBotPlugins, HandleFn};
-use azalea_client::{chat::ChatPacket, init_ecs_app, start_ecs, Account, Client, Event, JoinError};
+use azalea_client::{
+    chat::ChatPacket,
+    client::{azalea_ecs_runner, init_ecs_app, JoinError},
+    Account, Client, Event,
+};
 use azalea_ecs::{
     app::{App, Plugin, PluginGroup, PluginGroupBuilder},
     component::Component,
@@ -254,7 +258,8 @@ where
         let (swarm_tx, mut swarm_rx) = mpsc::unbounded_channel();
 
         let (run_schedule_sender, run_schedule_receiver) = mpsc::unbounded_channel();
-        let ecs_lock = start_ecs(self.app, run_schedule_receiver, run_schedule_sender.clone());
+        let ecs_lock =
+            azalea_ecs_runner(self.app, run_schedule_receiver, run_schedule_sender.clone());
 
         let swarm = Swarm {
             ecs_lock: ecs_lock.clone(),
@@ -372,7 +377,7 @@ pub enum SwarmStartError {
     #[error(transparent)]
     ResolveAddress(#[from] ResolverError),
     #[error("Join error: {0}")]
-    Join(#[from] azalea_client::JoinError),
+    Join(#[from] JoinError),
 }
 
 /// Make a bot [`Swarm`].

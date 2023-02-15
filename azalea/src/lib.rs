@@ -7,6 +7,7 @@ pub mod prelude;
 pub mod swarm;
 
 pub use azalea_block as blocks;
+use azalea_client::client::{azalea_ecs_runner, init_ecs_app, JoinError};
 pub use azalea_client::*;
 pub use azalea_core::{BlockPos, Vec3};
 use azalea_ecs::{
@@ -35,7 +36,7 @@ pub enum StartError {
     #[error(transparent)]
     ResolveAddress(#[from] ResolverError),
     #[error("Join error: {0}")]
-    Join(#[from] azalea_client::JoinError),
+    Join(#[from] JoinError),
 }
 
 /// A builder for creating new [`Client`]s. This is the recommended way of
@@ -136,7 +137,8 @@ where
 
         // An event that causes the schedule to run. This is only used internally.
         let (run_schedule_sender, run_schedule_receiver) = mpsc::unbounded_channel();
-        let ecs_lock = start_ecs(self.app, run_schedule_receiver, run_schedule_sender.clone());
+        let ecs_lock =
+            azalea_ecs_runner(self.app, run_schedule_receiver, run_schedule_sender.clone());
 
         let (bot, mut rx) = Client::start_client(
             ecs_lock,
