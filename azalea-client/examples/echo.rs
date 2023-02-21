@@ -3,32 +3,36 @@
 use azalea_client::{
     chat::{ChatReceivedEvent, SendChatEvent},
     client::DefaultPlugins,
-    Account, Client, Event, GameProfileComponent,
+    protocol::resolver::resolve_address,
+    Account, GameProfileComponent,
 };
 use azalea_ecs::{
     app::App,
     ecs::Ecs,
     event::{EventReader, EventWriter},
-    system::{Commands, Query},
+    system::{Commands, Query, ResMut},
 };
 
 #[tokio::main]
 async fn main() {
     env_logger::init();
 
-    let account = Account::offline("bot");
-    // or let account = Account::microsoft("email").await;
-
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_startup_system(setup)
         .add_system(handle_chat)
-        .add_startup_system(add_client)
-        .add_azalea_client(&account, "localhost")
         .run();
-    azalea_client::join(&account, "localhost", &mut app.world).await;
 }
 
-fn add_client(mut commands: Commands) {}
+fn setup(
+    mut commands: Commands,
+    mut resolver: ResMut<AddrResolver>,
+    mut accounts: ResMut<Accounts>,
+) {
+    let account: AccountId = accounts.offline("bot");
+    let address: AddrId = resolver.resolve("localhost");
+    commands.spawn(NewClient { account, address })
+}
 
 fn handle_chat(
     mut events: EventReader<ChatReceivedEvent>,

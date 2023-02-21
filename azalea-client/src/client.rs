@@ -18,14 +18,13 @@ use azalea_ecs::{
     app::{App, Plugin, PluginGroup, PluginGroupBuilder},
     bundle::Bundle,
     entity::Entity,
-    schedule::{IntoSystemDescriptor, Stage, SystemSet},
-    system::Resource,
+    schedule::{IntoSystemDescriptor, SystemSet},
     AppTickExt,
 };
 use azalea_ecs::{ecs::Ecs, TickPlugin};
 use azalea_physics::PhysicsPlugin;
 use azalea_protocol::{
-    connect::ConnectionError,
+    connect::{Connection, ConnectionError},
     packets::game::serverbound_client_information_packet::ServerboundClientInformationPacket,
     resolver, ServerAddress,
 };
@@ -33,11 +32,12 @@ use azalea_world::{
     entity::{EntityPlugin, Local},
     WorldContainer,
 };
+use bevy_tasks::IoTaskPool;
 use derive_more::{Deref, DerefMut};
 use futures::channel::mpsc::UnboundedSender;
-use log::error;
-use parking_lot::Mutex;
-use std::{fmt::Debug, io, sync::Arc, time::Duration};
+use log::{error, warn};
+use parking_lot::{Mutex, RwLock};
+use std::{collections::HashMap, fmt::Debug, io, net::SocketAddr, sync::Arc, time::Duration};
 use thiserror::Error;
 use tokio::{
     sync::mpsc,
@@ -67,46 +67,33 @@ pub enum JoinError {
     Disconnect { reason: FormattedText },
 }
 
-/// Connect to a Minecraft server.
-///
-/// To change the render distance and other settings, use
-/// [`Client::set_client_information`]. To watch for events like packets
-/// sent by the server, use the `rx` variable this function returns.
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// use azalea_client::{Client, Account};
-///
-/// #[tokio::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let account = Account::offline("bot");
-///     let (client, rx) = Client::join(&account, "localhost").await?;
-///     client.chat("Hello, world!");
-///     client.disconnect();
-///     Ok(())
-/// }
-/// ```
-pub async fn join(
-    account: &Account,
-    address: impl TryInto<ServerAddress>,
-    ecs: &mut Ecs,
-) -> Result<Entity, JoinError> {
-    let address: ServerAddress = address.try_into().map_err(|_| JoinError::InvalidAddress)?;
-    let resolved_address = resolver::resolve_address(&address).await?;
+pub struct NewClient {
+    pub account: AccountId,
+    pub address: AddrId,
+}
 
-    // An event that causes the schedule to run. This is only used internally.
-    let (run_schedule_sender, run_schedule_receiver) = mpsc::unbounded_channel();
-    let ecs_lock = azalea_ecs_runner(app, run_schedule_receiver, run_schedule_sender.clone());
+pub struct SourceInfo {
+    
+}
+pub struct AddrResolver {
+    pub sources: Arc<RwLock<HashMap<ServerAddress, SocketAddr>>>,
+}
+impl AddrResolver {
+    pub fn resolve(&mut self, address: impl TryInto<ServerAddress>) {
+        let address: ServerAddress = address.try_into().map_err(|_| JoinError::InvalidAddress)?;
+        let resolved_address = resolver::resolve_address(&address).await?;
+    }
 
-    Self::start_client(
-        ecs_lock,
-        account,
-        &address,
-        &resolved_address,
-        run_schedule_sender,
-    )
-    .await
+    pub async fn resolve_async(&self) {
+        let resolver = self;
+        IoTaskPool::get()
+            .spawn(async move {
+                if let Err(err) = server.load_async(owned_path, force).await {
+                    warn!("{}", err);
+                }
+            })
+            .detach();
+    }
 }
 
 /// Create a [`Client`] when you already have the ECS made with
@@ -119,7 +106,7 @@ pub async fn start_client(
     run_schedule_sender: mpsc::UnboundedSender<()>,
 ) -> Result<Entity, JoinError> {
     let conn = Connection::new(resolved_address).await?;
-    let (conn, game_profile) = Self::handshake(conn, account, address).await?;
+    let (conn, game_profile) = handshake(conn, account, address).await?;
     let (read_conn, write_conn) = conn.into_split();
 
     let mut ecs = ecs_lock.lock();
@@ -168,7 +155,6 @@ pub async fn start_client(
             packet_receiver,
             game_profile: GameProfileComponent(game_profile),
             physics_state: PhysicsState::default(),
-            local_player_events: LocalPlayerEvents(tx),
             _local: Local,
         })
         .id();
@@ -307,7 +293,6 @@ pub struct JoinedClientBundle {
     pub packet_receiver: PacketReceiver,
     pub game_profile: GameProfileComponent,
     pub physics_state: PhysicsState,
-    pub local_player_events: LocalPlayerEvents,
     pub _local: Local,
 }
 

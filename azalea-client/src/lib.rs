@@ -21,6 +21,7 @@ pub mod task_pool;
 
 pub use account::Account;
 pub use azalea_ecs as ecs;
+pub use azalea_protocol as protocol;
 pub use local_player::{GameProfileComponent, LocalPlayer};
 pub use movement::{SprintDirection, StartSprintEvent, StartWalkEvent, WalkDirection};
 pub use player::PlayerInfo;

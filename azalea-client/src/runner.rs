@@ -1,13 +1,23 @@
 use std::{sync::Arc, time::Duration};
 
-use azalea_ecs::{app::App, ecs::Ecs, schedule::Stage, system::Resource};
+use azalea_ecs::{
+    app::{App, Plugin},
+    ecs::Ecs,
+    schedule::Stage,
+    system::Resource,
+};
 use derive_more::{Deref, DerefMut};
 use parking_lot::Mutex;
 use tokio::{runtime::Runtime, sync::mpsc, time::interval};
 
-/// The plugin that makes the schedule only run when necessary and makes Azalea
-/// plugins able to access a mutex that contains the ECS.
+/// The plugin that makes the schedule only run when necessary, and adds the
+/// [`EcsMutex`] resource to the ECS.
 pub struct RunnerPlugin;
+impl Plugin for RunnerPlugin {
+    fn build(&self, app: &mut App) {
+        app.set_runner(azalea_ecs_runner);
+    }
+}
 
 /// A resource that contains the [`Ecs`] as an `Arc<Mutex<Ecs>>`.
 #[derive(Resource, Deref, DerefMut)]
