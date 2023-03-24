@@ -70,7 +70,7 @@ pub enum EntityDataValue {
     BlockState(azalea_block::BlockState),
     /// If this is air, that means it's absent,
     OptionalBlockState(azalea_block::BlockState),
-    CompoundTag(azalea_nbt::Nbt),
+    CompoundTag(azalea_nbt::NbtTag),
     Particle(Particle),
     VillagerData(VillagerData),
     // 0 for absent; 1 + actual value otherwise. Used for entity IDs.

@@ -6,5 +6,5 @@ use azalea_protocol_macros::ClientboundGamePacket;
 pub struct ClientboundBlockEntityDataPacket {
     pub pos: BlockPos,
     pub block_entity_type: azalea_registry::BlockEntityKind,
-    pub tag: azalea_nbt::Nbt,
+    pub tag: azalea_nbt::NbtTag,
 }

@@ -17,41 +17,41 @@ fn write_compound(writer: &mut impl Write, value: &NbtCompound, end_tag: bool) {
         writer.write_u8(tag.id()).unwrap();
         write_string(writer, key);
         match tag {
-            Nbt::End => {}
-            Nbt::Byte(value) => {
+            UntypedNbtTag::End => {}
+            NbtTag::Byte(value) => {
                 writer.write_i8(*value).unwrap();
             }
-            Nbt::Short(value) => {
+            NbtTag::Short(value) => {
                 writer.write_i16::<BE>(*value).unwrap();
             }
-            Nbt::Int(value) => {
+            NbtTag::Int(value) => {
                 writer.write_i32::<BE>(*value).unwrap();
             }
-            Nbt::Long(value) => {
+            NbtTag::Long(value) => {
                 writer.write_i64::<BE>(*value).unwrap();
             }
-            Nbt::Float(value) => {
+            NbtTag::Float(value) => {
                 writer.write_f32::<BE>(*value).unwrap();
             }
-            Nbt::Double(value) => {
+            NbtTag::Double(value) => {
                 writer.write_f64::<BE>(*value).unwrap();
             }
-            Nbt::ByteArray(value) => {
+            NbtTag::ByteArray(value) => {
                 write_byte_array(writer, value);
             }
-            Nbt::String(value) => {
+            NbtTag::String(value) => {
                 write_string(writer, value);
             }
-            Nbt::List(value) => {
+            NbtTag::List(value) => {
                 write_list(writer, value);
             }
-            Nbt::Compound(value) => {
+            NbtTag::Compound(value) => {
                 write_compound(writer, value, true);
             }
-            Nbt::IntArray(value) => {
+            NbtTag::IntArray(value) => {
                 write_int_array(writer, value);
             }
-            Nbt::LongArray(value) => {
+            NbtTag::LongArray(value) => {
                 write_long_array(writer, value);
             }
         }
@@ -229,7 +229,7 @@ fn write_long_array(writer: &mut impl Write, value: &Vec<i64>) {
     }
 }
 
-impl Nbt {
+impl NbtTag {
     /// Write the compound tag as NBT data.
     ///
     /// # Panics
@@ -237,10 +237,10 @@ impl Nbt {
     /// Will panic if the tag is not a Compound or End tag.
     pub fn write(&self, writer: &mut impl Write) {
         match self {
-            Nbt::Compound(value) => {
+            NbtTag::Compound(value) => {
                 write_compound(writer, value, false);
             }
-            Nbt::End => {
+            NbtTag::End => {
                 END_ID.write_into(writer).unwrap();
             }
             _ => panic!("Not a compound tag"),
@@ -268,7 +268,7 @@ impl Nbt {
     }
 }
 
-impl McBufWritable for Nbt {
+impl McBufWritable for NbtTag {
     fn write_into(&self, buf: &mut impl Write) -> Result<(), std::io::Error> {
         self.write(buf);
         Ok(())

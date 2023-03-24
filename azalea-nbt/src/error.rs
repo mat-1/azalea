@@ -5,6 +5,7 @@ pub enum Error {
     WriteError(std::io::Error),
     Utf8Error(std::str::Utf8Error),
     UnexpectedEof,
+    RootNotCompound,
 }
 
 impl std::fmt::Display for Error {
@@ -15,6 +16,7 @@ impl std::fmt::Display for Error {
             Error::WriteError(e) => write!(f, "Write error: {e}"),
             Error::Utf8Error(e) => write!(f, "Utf8 error: {e}"),
             Error::UnexpectedEof => write!(f, "Unexpected EOF"),
+            Error::RootNotCompound => write!(f, "Root tag is not a compound"),
         }
     }
 }

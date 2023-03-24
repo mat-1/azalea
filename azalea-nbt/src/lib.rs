@@ -7,7 +7,7 @@ mod error;
 mod tag;
 
 pub use error::Error;
-pub use tag::{Nbt, NbtCompound, NbtList};
+pub use tag::{NbtCompound, NbtList};
 
 #[cfg(test)]
 mod tests {
@@ -21,25 +21,25 @@ mod tests {
     #[test]
     fn mcbuf_nbt() {
         let mut buf = Vec::new();
-        let tag = Nbt::Compound(NbtCompound::from_iter(vec![(
+        let tag = NbtTag::Compound(NbtCompound::from_iter(vec![(
             "hello world".into(),
-            Nbt::Compound(NbtCompound::from_iter(vec![(
+            NbtTag::Compound(NbtCompound::from_iter(vec![(
                 "name".into(),
-                Nbt::String("Bananrama".into()),
+                NbtTag::String("Bananrama".into()),
             )])),
         )]));
         tag.write_into(&mut buf).unwrap();
 
         let mut buf = Cursor::new(&buf[..]);
 
-        let result = Nbt::read_from(&mut buf).unwrap();
+        let result = NbtTag::read_from(&mut buf).unwrap();
         assert_eq!(
             result,
-            Nbt::Compound(NbtCompound::from_iter(vec![(
+            NbtTag::Compound(NbtCompound::from_iter(vec![(
                 "hello world".into(),
-                Nbt::Compound(NbtCompound::from_iter(vec![(
+                NbtTag::Compound(NbtCompound::from_iter(vec![(
                     "name".into(),
-                    Nbt::String("Bananrama".into()),
+                    NbtTag::String("Bananrama".into()),
                 )])),
             )]))
         );
