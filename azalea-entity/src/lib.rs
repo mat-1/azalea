@@ -133,7 +133,7 @@ impl Debug for EntityUuid {
 /// You are free to change this; there's systems that update the indexes
 /// automatically.
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Deref, DerefMut)]
-pub struct Position(Vec3);
+pub struct Position(pub Vec3);
 impl From<&Position> for Vec3 {
     fn from(value: &Position) -> Self {
         value.0
@@ -191,10 +191,10 @@ impl From<&LastSentPosition> for BlockPos {
 
 /// A component for entities that can jump.
 ///
-/// If this is true, the entity will try to jump every tick. (It's equivalent to
-/// the space key being held in vanilla.)
-#[derive(Debug, Component, Clone, Deref, DerefMut)]
-pub struct Jumping(bool);
+/// If this is true, the entity will try to jump every tick. It's equivalent to
+/// the space key being held in vanilla.
+#[derive(Debug, Component, Clone, Default, Deref, DerefMut)]
+pub struct Jumping(pub bool);
 
 /// A component that contains the direction an entity is looking.
 #[derive(Debug, Component, Clone, Default)]
@@ -205,7 +205,7 @@ pub struct LookDirection {
 
 /// The physics data relating to the entity, such as position, velocity, and
 /// bounding box.
-#[derive(Debug, Component)]
+#[derive(Debug, Component, Clone)]
 pub struct Physics {
     pub delta: Vec3,
 

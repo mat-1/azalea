@@ -188,6 +188,7 @@ dependencies = [
  "bevy_ecs",
  "bevy_log",
  "bevy_tasks",
+ "bevy_time",
  "derive_more",
  "futures",
  "futures-lite",

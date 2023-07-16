@@ -168,7 +168,7 @@ fn look_at_listener(
 
 /// Return the (`y_rot`, `x_rot`) that would make a client at `current` be
 /// looking at `target`.
-fn direction_looking_at(current: &Vec3, target: &Vec3) -> (f32, f32) {
+pub fn direction_looking_at(current: &Vec3, target: &Vec3) -> (f32, f32) {
     // borrowed from mineflayer's Bot.lookAt because i didn't want to do math
     let delta = target - current;
     let y_rot = (PI - f64::atan2(-delta.x, -delta.z)) * (180.0 / PI);

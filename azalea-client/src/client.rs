@@ -7,10 +7,10 @@ use crate::{
     inventory::{InventoryComponent, InventoryPlugin},
     local_player::{
         death_event, handle_send_packet_event, update_in_loaded_chunk, GameProfileComponent,
-        LocalPlayer, PhysicsState, SendPacketEvent,
+        LocalPlayer, SendPacketEvent,
     },
     mining::{self, MinePlugin},
-    movement::{LastSentLookDirection, PlayerMovePlugin},
+    movement::{LastSentLookDirection, PhysicsState, PlayerMovePlugin},
     packet_handling::{self, PacketHandlerPlugin, PacketReceiver},
     player::retroactively_add_game_profile_component,
     respawn::RespawnPlugin,

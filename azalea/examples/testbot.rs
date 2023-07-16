@@ -12,7 +12,9 @@ use azalea::protocol::packets::game::ClientboundGamePacket;
 use azalea::{prelude::*, swarm::prelude::*, BlockPos, GameProfileComponent, WalkDirection};
 use azalea::{Account, Client, Event};
 use azalea_core::Vec3;
+use azalea_entity::Local;
 use azalea_world::{InstanceName, MinecraftEntityId};
+use bevy_ecs::query::Without;
 use std::time::Duration;
 
 #[derive(Default, Clone, Component)]
@@ -227,24 +229,19 @@ async fn handle(mut bot: Client, event: Event, _state: State) -> anyhow::Result<
                         let mut nearest_distance = f64::INFINITY;
                         let mut nearest_pos = Vec3::default();
                         let bot_position = bot.position();
-                        let bot_entity = bot.entity;
                         let bot_instance_name = bot.component::<InstanceName>();
                         {
                             let mut ecs = bot.ecs.lock();
                             let mut query = ecs.query_filtered::<(
-                                azalea::ecs::entity::Entity,
                                 &MinecraftEntityId,
                                 &Position,
                                 &InstanceName,
                                 &EyeHeight,
-                            ), With<MinecraftEntityId>>(
+                            ), (With<MinecraftEntityId>, Without<Local>)>(
                             );
-                            for (entity, &entity_id, position, instance_name, eye_height) in
+                            for (&entity_id, position, instance_name, eye_height) in
                                 query.iter(&ecs)
                             {
-                                if entity == bot_entity {
-                                    continue;
-                                }
                                 if instance_name != &bot_instance_name {
                                     continue;
                                 }

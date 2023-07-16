@@ -3,7 +3,7 @@ use bevy_ecs::{query::Changed, system::Query};
 
 use super::{Physics, Position};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct EntityDimensions {
     pub width: f32,
     pub height: f32,

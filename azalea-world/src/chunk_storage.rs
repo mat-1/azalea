@@ -29,7 +29,7 @@ pub struct PartialChunkStorage {
 /// A storage for chunks where they're only stored weakly, so if they're not
 /// actively being used somewhere else they'll be forgotten. This is used for
 /// shared worlds.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ChunkStorage {
     pub height: u32,
     pub min_y: i32,

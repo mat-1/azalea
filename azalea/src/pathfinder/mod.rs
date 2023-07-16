@@ -1,10 +1,9 @@
 mod astar;
+mod execute;
 pub mod goals;
 mod moves;
 
-use crate::bot::{JumpEvent, LookAtEvent};
 use crate::pathfinder::astar::a_star;
-use crate::{SprintDirection, WalkDirection};
 
 use crate::app::{App, Plugin};
 use crate::ecs::{
@@ -15,7 +14,6 @@ use crate::ecs::{
     system::{Commands, Query, Res},
 };
 use astar::Edge;
-use azalea_client::{StartSprintEvent, StartWalkEvent};
 use azalea_core::{BlockPos, CardinalDirection};
 use azalea_entity::metadata::Player;
 use azalea_entity::Local;
@@ -30,6 +28,8 @@ use futures_lite::future;
 use log::{debug, error};
 use std::collections::VecDeque;
 use std::sync::Arc;
+
+use self::execute::tick_execute_path;
 
 #[derive(Clone, Default)]
 pub struct PathfinderPlugin;
@@ -228,55 +228,6 @@ fn path_found_listener(mut events: EventReader<PathFoundEvent>, mut query: Query
             .get_mut(event.entity)
             .expect("Path found for an entity that doesn't have a pathfinder");
         pathfinder.path = event.path.clone();
-    }
-}
-
-fn tick_execute_path(
-    mut query: Query<(Entity, &mut Pathfinder, &Position, &Physics)>,
-    mut look_at_events: EventWriter<LookAtEvent>,
-    mut sprint_events: EventWriter<StartSprintEvent>,
-    mut walk_events: EventWriter<StartWalkEvent>,
-    mut jump_events: EventWriter<JumpEvent>,
-) {
-    for (entity, mut pathfinder, position, physics) in &mut query {
-        loop {
-            let Some(target) = pathfinder.path.front() else {
-                break;
-            };
-            let center = target.pos.center();
-            // println!("going to {center:?} (at {pos:?})", pos = bot.entity().pos());
-            look_at_events.send(LookAtEvent {
-                entity,
-                position: center,
-            });
-            debug!(
-                "tick: pathfinder {entity:?}; going to {:?}; currently at {position:?}",
-                target.pos
-            );
-            sprint_events.send(StartSprintEvent {
-                entity,
-                direction: SprintDirection::Forward,
-            });
-            // check if we should jump
-            if target.pos.y > position.y.floor() as i32 {
-                jump_events.send(JumpEvent(entity));
-            }
-
-            if target.is_reached(position, physics) {
-                // println!("reached target");
-                pathfinder.path.pop_front();
-                if pathfinder.path.is_empty() {
-                    // println!("reached goal");
-                    walk_events.send(StartWalkEvent {
-                        entity,
-                        direction: WalkDirection::None,
-                    });
-                }
-                // tick again, maybe we already reached the next node!
-            } else {
-                break;
-            }
-        }
     }
 }
 

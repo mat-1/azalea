@@ -23,7 +23,7 @@ pub mod interact;
 pub mod inventory;
 mod local_player;
 pub mod mining;
-mod movement;
+pub mod movement;
 pub mod packet_handling;
 pub mod ping;
 mod player;
@@ -36,6 +36,6 @@ pub use client::{
     TickBroadcast,
 };
 pub use events::Event;
-pub use local_player::{GameProfileComponent, LocalPlayer};
+pub use local_player::{GameProfileComponent, LocalPlayer, LocalPlayerInLoadedChunk};
 pub use movement::{SprintDirection, StartSprintEvent, StartWalkEvent, WalkDirection};
 pub use player::PlayerInfo;
