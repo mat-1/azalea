@@ -119,13 +119,12 @@ fn goto_listener(
         let world_lock = instance_container
             .get(world_name)
             .expect("Entity tried to pathfind but the entity isn't in a valid world");
-        let end = event.goal.goal_node();
 
         let goal = event.goal.clone();
         let entity = event.entity;
 
         let task = thread_pool.spawn(async move {
-            debug!("start: {start:?}, end: {end:?}");
+            debug!("start: {start:?}");
 
             let possible_moves: Vec<&dyn moves::Move> = vec![
                 &moves::ForwardMove(CardinalDirection::North),
@@ -229,9 +228,6 @@ fn path_found_listener(mut events: EventReader<PathFoundEvent>, mut query: Query
 pub trait Goal {
     fn heuristic(&self, n: BlockPos) -> f32;
     fn success(&self, n: BlockPos) -> bool;
-    // TODO: this should be removed and mtdstarlite should stop depending on
-    // being given a goal node
-    fn goal_node(&self) -> BlockPos;
 }
 
 /// Returns whether the entity is at the node and should start going to the

@@ -61,7 +61,17 @@ pub trait Move: Send + Sync {
 
 #[derive(Debug, Clone)]
 pub struct MoveData {
+    pub sprint: bool,
     pub jump: bool,
+}
+
+impl Default for MoveData {
+    fn default() -> Self {
+        Self {
+            sprint: true,
+            jump: false,
+        }
+    }
 }
 
 pub struct ForwardMove(pub CardinalDirection);
@@ -78,7 +88,7 @@ impl Move for ForwardMove {
         Some(Edge {
             movement: Movement {
                 target: node + offset,
-                data: MoveData { jump: false },
+                data: MoveData::default(),
             },
             cost,
         })
@@ -99,7 +109,10 @@ impl Move for AscendMove {
         Some(Edge {
             movement: Movement {
                 target: node + offset,
-                data: MoveData { jump: true },
+                data: MoveData {
+                    jump: true,
+                    ..Default::default()
+                },
             },
             cost,
         })
@@ -128,7 +141,7 @@ impl Move for DescendMove {
         Some(Edge {
             movement: Movement {
                 target: new_position,
-                data: MoveData { jump: false },
+                data: MoveData::default(),
             },
             cost,
         })
@@ -160,7 +173,7 @@ impl Move for DiagonalMove {
         Some(Edge {
             movement: Movement {
                 target: node + offset,
-                data: MoveData { jump: false },
+                data: MoveData::default(),
             },
             cost,
         })
@@ -189,7 +202,10 @@ impl Move for ParkourForwardMove {
         Some(Edge {
             movement: Movement {
                 target: node + offset,
-                data: MoveData { jump: true },
+                data: MoveData {
+                    jump: true,
+                    sprint: false,
+                },
             },
             cost,
         })
@@ -233,7 +249,10 @@ impl Move for ParkourForward2Move {
         Some(Edge {
             movement: Movement {
                 target: node + offset,
-                data: MoveData { jump: true },
+                data: MoveData {
+                    jump: true,
+                    sprint: true,
+                },
             },
             cost,
         })

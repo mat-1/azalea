@@ -89,10 +89,17 @@ pub fn tick_execute_path(
                 position: target.center(),
             });
             debug!("tick: pathfinder {entity:?}; going to {target:?}; currently at {position:?}");
-            sprint_events.send(StartSprintEvent {
-                entity,
-                direction: SprintDirection::Forward,
-            });
+            if movement.data.sprint {
+                sprint_events.send(StartSprintEvent {
+                    entity,
+                    direction: SprintDirection::Forward,
+                });
+            } else {
+                walk_events.send(StartWalkEvent {
+                    entity,
+                    direction: WalkDirection::Forward,
+                });
+            }
 
             if crate::pathfinder::is_reached(&target, position, physics) {
                 pathfinder.path.pop_front();
