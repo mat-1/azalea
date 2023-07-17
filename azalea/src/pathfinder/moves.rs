@@ -196,6 +196,50 @@ impl Move for ParkourForwardMove {
         })
     }
 }
+pub struct ParkourForward2Move(pub CardinalDirection);
+impl Move for ParkourForward2Move {
+    fn get(&self, world: &Instance, node: BlockPos) -> Option<Edge> {
+        // there's a space to pass through
+        if !is_passable(&(node + BlockPos::new(self.0.x(), 0, self.0.z())), world) {
+            return None;
+        }
+        if !is_passable(
+            &(node + BlockPos::new(self.0.x() * 2, 0, self.0.z() * 2)),
+            world,
+        ) {
+            return None;
+        }
+        // check to make sure we actually do have to jump
+        if !is_block_passable(&(node + BlockPos::new(self.0.x(), -1, self.0.z())), world) {
+            return None;
+        }
+        if !is_block_passable(
+            &(node + BlockPos::new(self.0.x() * 2, -1, self.0.z() * 2)),
+            world,
+        ) {
+            return None;
+        }
+        // check to make sure we can land
+        let offset = BlockPos::new(self.0.x() * 3, 0, self.0.z() * 3);
+        if !is_standable(&(node + offset), world) {
+            return None;
+        }
+
+        let cost = JUMP_COST
+            + WALK_ONE_BLOCK_COST
+            + WALK_ONE_BLOCK_COST
+            + WALK_ONE_BLOCK_COST
+            + FALL_ONE_BLOCK_COST;
+
+        Some(Edge {
+            movement: Movement {
+                target: node + offset,
+                data: MoveData { jump: true },
+            },
+            cost,
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {

@@ -152,6 +152,11 @@ fn goto_listener(
                 &moves::ParkourForwardMove(CardinalDirection::East),
                 &moves::ParkourForwardMove(CardinalDirection::South),
                 &moves::ParkourForwardMove(CardinalDirection::West),
+                //
+                &moves::ParkourForward2Move(CardinalDirection::North),
+                &moves::ParkourForward2Move(CardinalDirection::East),
+                &moves::ParkourForward2Move(CardinalDirection::South),
+                &moves::ParkourForward2Move(CardinalDirection::West),
             ];
 
             let successors = |node: BlockPos| {
@@ -175,8 +180,8 @@ fn goto_listener(
                 |n| goal.success(n),
             );
             let end_time = std::time::Instant::now();
-            println!("path: {p:?}");
-            println!("time: {:?}", end_time - start_time);
+            debug!("path: {p:?}");
+            debug!("time: {:?}", end_time - start_time);
 
             // convert the Option<Vec<Node>> to a VecDeque<Node>
             if let Some(p) = p {
