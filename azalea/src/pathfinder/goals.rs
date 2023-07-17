@@ -1,25 +1,22 @@
 use azalea_core::BlockPos;
 
-use super::{Goal, Node, VerticalVel};
+use super::Goal;
 
 pub struct BlockPosGoal {
     pub pos: BlockPos,
 }
 impl Goal for BlockPosGoal {
-    fn heuristic(&self, n: &Node) -> f32 {
-        let dx = (self.pos.x - n.pos.x) as f32;
-        let dy = (self.pos.y - n.pos.y) as f32;
-        let dz = (self.pos.z - n.pos.z) as f32;
+    fn heuristic(&self, n: BlockPos) -> f32 {
+        let dx = (self.pos.x - n.x) as f32;
+        let dy = (self.pos.y - n.y) as f32;
+        let dz = (self.pos.z - n.z) as f32;
         dx * dx + dy * dy + dz * dz
     }
-    fn success(&self, n: &Node) -> bool {
-        n.pos == self.pos
+    fn success(&self, n: BlockPos) -> bool {
+        n == self.pos
     }
-    fn goal_node(&self) -> Node {
-        Node {
-            pos: self.pos,
-            vertical_vel: VerticalVel::None,
-        }
+    fn goal_node(&self) -> BlockPos {
+        self.pos
     }
 }
 

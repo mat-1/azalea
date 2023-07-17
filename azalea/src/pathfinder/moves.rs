@@ -1,7 +1,8 @@
-use super::{Node, VerticalVel};
 use azalea_core::{BlockPos, CardinalDirection};
 use azalea_physics::collision::{self, BlockWithShape};
 use azalea_world::Instance;
+
+use super::astar::{self, Movement};
 
 /// whether this block is passable
 fn is_block_passable(pos: &BlockPos, world: &Instance) -> bool {
@@ -53,29 +54,32 @@ const JUMP_COST: f32 = 0.5;
 const WALK_ONE_BLOCK_COST: f32 = 1.0;
 const FALL_ONE_BLOCK_COST: f32 = 0.5;
 
+type Edge = astar::Edge<BlockPos, MoveData, f32>;
+
 pub trait Move: Send + Sync {
-    fn get(&self, world: &Instance, node: &Node) -> Option<MoveResult>;
+    fn get(&self, world: &Instance, node: BlockPos) -> Option<Edge>;
 }
-pub struct MoveResult {
-    pub node: Node,
-    pub cost: f32,
+
+#[derive(Debug, Clone)]
+pub struct MoveData {
+    pub jump: bool,
 }
 
 pub struct ForwardMove(pub CardinalDirection);
 impl Move for ForwardMove {
-    fn get(&self, world: &Instance, node: &Node) -> Option<MoveResult> {
+    fn get(&self, world: &Instance, node: BlockPos) -> Option<Edge> {
         let offset = BlockPos::new(self.0.x(), 0, self.0.z());
 
-        if !is_standable(&(node.pos + offset), world) || node.vertical_vel != VerticalVel::None {
+        if !is_standable(&(node + offset), world) {
             return None;
         }
 
         let cost = WALK_ONE_BLOCK_COST;
 
-        Some(MoveResult {
-            node: Node {
-                pos: node.pos + offset,
-                vertical_vel: VerticalVel::None,
+        Some(Edge {
+            movement: Movement {
+                target: node + offset,
+                data: MoveData { jump: false },
             },
             cost,
         })
@@ -84,22 +88,19 @@ impl Move for ForwardMove {
 
 pub struct AscendMove(pub CardinalDirection);
 impl Move for AscendMove {
-    fn get(&self, world: &Instance, node: &Node) -> Option<MoveResult> {
+    fn get(&self, world: &Instance, node: BlockPos) -> Option<Edge> {
         let offset = BlockPos::new(self.0.x(), 1, self.0.z());
 
-        if node.vertical_vel != VerticalVel::None
-            || !is_block_passable(&node.pos.up(2), world)
-            || !is_standable(&(node.pos + offset), world)
-        {
+        if !is_block_passable(&node.up(2), world) || !is_standable(&(node + offset), world) {
             return None;
         }
 
         let cost = WALK_ONE_BLOCK_COST + JUMP_COST;
 
-        Some(MoveResult {
-            node: Node {
-                pos: node.pos + offset,
-                vertical_vel: VerticalVel::None,
+        Some(Edge {
+            movement: Movement {
+                target: node + offset,
+                data: MoveData { jump: true },
             },
             cost,
         })
@@ -107,8 +108,8 @@ impl Move for AscendMove {
 }
 pub struct DescendMove(pub CardinalDirection);
 impl Move for DescendMove {
-    fn get(&self, world: &Instance, node: &Node) -> Option<MoveResult> {
-        let new_horizontal_position = node.pos + BlockPos::new(self.0.x(), 0, self.0.z());
+    fn get(&self, world: &Instance, node: BlockPos) -> Option<Edge> {
+        let new_horizontal_position = node + BlockPos::new(self.0.x(), 0, self.0.z());
         let fall_distance = fall_distance(&new_horizontal_position, world);
         if fall_distance == 0 {
             return None;
@@ -119,16 +120,16 @@ impl Move for DescendMove {
         let new_position = new_horizontal_position.down(fall_distance as i32);
 
         // check whether 3 blocks vertically forward are passable
-        if node.vertical_vel != VerticalVel::None || !is_passable(&new_horizontal_position, world) {
+        if !is_passable(&new_horizontal_position, world) {
             return None;
         }
 
         let cost = WALK_ONE_BLOCK_COST + FALL_ONE_BLOCK_COST * fall_distance as f32;
 
-        Some(MoveResult {
-            node: Node {
-                pos: new_position,
-                vertical_vel: VerticalVel::None,
+        Some(Edge {
+            movement: Movement {
+                target: new_position,
+                data: MoveData { jump: false },
             },
             cost,
         })
@@ -136,36 +137,60 @@ impl Move for DescendMove {
 }
 pub struct DiagonalMove(pub CardinalDirection);
 impl Move for DiagonalMove {
-    fn get(&self, world: &Instance, node: &Node) -> Option<MoveResult> {
-        if node.vertical_vel != VerticalVel::None {
-            return None;
-        }
-
+    fn get(&self, world: &Instance, node: BlockPos) -> Option<Edge> {
         let right = self.0.right();
         let offset = BlockPos::new(self.0.x() + right.x(), 0, self.0.z() + right.z());
 
-        if !is_passable(
-            &BlockPos::new(node.pos.x + self.0.x(), node.pos.y, node.pos.z + self.0.z()),
-            world,
-        ) && !is_passable(
-            &BlockPos::new(
-                node.pos.x + self.0.right().x(),
-                node.pos.y,
-                node.pos.z + self.0.right().z(),
-            ),
-            world,
-        ) {
+        if !is_passable(&(node + BlockPos::new(self.0.x(), 0, self.0.z())), world)
+            && !is_passable(
+                &BlockPos::new(
+                    node.x + self.0.right().x(),
+                    node.y,
+                    node.z + self.0.right().z(),
+                ),
+                world,
+            )
+        {
             return None;
         }
-        if !is_standable(&(node.pos + offset), world) {
+        if !is_standable(&(node + offset), world) {
             return None;
         }
         let cost = WALK_ONE_BLOCK_COST * 1.4;
 
-        Some(MoveResult {
-            node: Node {
-                pos: node.pos + offset,
-                vertical_vel: VerticalVel::None,
+        Some(Edge {
+            movement: Movement {
+                target: node + offset,
+                data: MoveData { jump: false },
+            },
+            cost,
+        })
+    }
+}
+
+pub struct ParkourForwardMove(pub CardinalDirection);
+impl Move for ParkourForwardMove {
+    fn get(&self, world: &Instance, node: BlockPos) -> Option<Edge> {
+        // there's a space to pass through
+        if !is_passable(&(node + BlockPos::new(self.0.x(), 0, self.0.z())), world) {
+            return None;
+        }
+        // check to make sure we actually do have to jump
+        if !is_block_passable(&(node + BlockPos::new(self.0.x(), -1, self.0.z())), world) {
+            return None;
+        }
+        // check to make sure we can land
+        let offset = BlockPos::new(self.0.x() * 2, 0, self.0.z() * 2);
+        if !is_standable(&(node + offset), world) {
+            return None;
+        }
+
+        let cost = JUMP_COST + WALK_ONE_BLOCK_COST + WALK_ONE_BLOCK_COST + FALL_ONE_BLOCK_COST;
+
+        Some(Edge {
+            movement: Movement {
+                target: node + offset,
+                data: MoveData { jump: true },
             },
             cost,
         })

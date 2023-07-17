@@ -120,6 +120,8 @@ pub fn move_colliding(
     let on_ground = vertical_collision && movement.y < 0.;
     physics.on_ground = on_ground;
 
+    physics.horizontal_collision = horizontal_collision;
+
     // TODO: minecraft checks for a "minor" horizontal collision here
 
     let _block_pos_below = azalea_entity::on_pos_legacy(&world.chunks, position);

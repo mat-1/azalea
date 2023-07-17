@@ -219,6 +219,8 @@ pub struct Physics {
     pub on_ground: bool,
     pub last_on_ground: bool,
 
+    pub horizontal_collision: bool,
+
     /// The width and height of the entity.
     pub dimensions: EntityDimensions,
     /// The bounding box of the entity. This is more than just width and height,
@@ -330,6 +332,8 @@ impl EntityBundle {
 
                 on_ground: false,
                 last_on_ground: false,
+
+                horizontal_collision: false,
 
                 // TODO: have this be based on the entity type
                 bounding_box: dimensions.make_bounding_box(&pos),

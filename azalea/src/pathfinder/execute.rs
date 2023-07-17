@@ -4,7 +4,7 @@ use azalea_client::{
     movement::PhysicsState, SprintDirection, StartSprintEvent, StartWalkEvent, WalkDirection,
 };
 use azalea_core::{BlockPos, ResourceLocation, Vec3};
-use azalea_entity::{metadata::Sprinting, Attributes, Jumping, LookDirection, Physics, Position};
+use azalea_entity::{metadata::Sprinting, Attributes, LookDirection, Physics, Position};
 use azalea_world::{ChunkStorage, Instance, InstanceContainer, InstanceName, MinecraftEntityId};
 use bevy_app::{App, FixedUpdate, Update};
 use bevy_ecs::prelude::*;
@@ -59,41 +59,42 @@ pub fn tick_execute_path(
                 .rev()
                 .collect::<Vec<_>>();
 
-            for (i, node) in &potential_targets {
+            for (i, movement) in &potential_targets {
                 if can_walk_to_position(
                     instance.read().chunks.clone(),
                     simulated_bundle.clone(),
-                    SimulationSettings { target: node.pos },
+                    SimulationSettings {
+                        target: movement.target,
+                    },
                 ) {
                     // we can skip some nodes
                     pathfinder.path = pathfinder.path.split_off(*i);
-                    println!("walking to {:?}", node.pos);
                     break;
                 }
             }
 
-            let target = pathfinder.path.front().unwrap();
-            let center = target.pos.center();
-            // println!("going to {center:?} (at {pos:?})", pos = bot.entity().pos());
+            let movement = pathfinder.path.front().unwrap().clone();
+
+            if Some(movement.target) != pathfinder.current_target_node {
+                // check if we should jump for this movement
+                if movement.data.jump {
+                    jump_events.send(JumpEvent(entity));
+                }
+                pathfinder.current_target_node = Some(movement.target);
+            }
+
+            let target = movement.target;
             look_at_events.send(LookAtEvent {
                 entity,
-                position: center,
+                position: target.center(),
             });
-            debug!(
-                "tick: pathfinder {entity:?}; going to {:?}; currently at {position:?}",
-                target.pos
-            );
+            debug!("tick: pathfinder {entity:?}; going to {target:?}; currently at {position:?}");
             sprint_events.send(StartSprintEvent {
                 entity,
                 direction: SprintDirection::Forward,
             });
-            // check if we should jump
-            if target.pos.y > position.y as i32 {
-                jump_events.send(JumpEvent(entity));
-            }
 
-            if target.is_reached(position, physics) {
-                println!("reached target");
+            if crate::pathfinder::is_reached(&target, position, physics) {
                 pathfinder.path.pop_front();
                 if pathfinder.path.is_empty() {
                     // println!("reached goal");
@@ -124,20 +125,15 @@ fn can_walk_to_position(
     // simulate for 1 second then check the results
     for _ in 0..20 {
         simulation.tick();
+        let current_pos = simulation.position();
+        if current_pos.y != start_pos.y || simulation.horizontal_collision() {
+            return false;
+        }
+        if BlockPos::from(current_pos) == settings.target {
+            return true;
+        }
     }
-
-    let end_pos = simulation.position();
-
-    if end_pos.y != start_pos.y {
-        return false;
-    }
-
-    if simulation.is_sprinting() && BlockPos::from(end_pos) == settings.target {
-        println!("can walk from {:?} to {:?}", start_pos, end_pos);
-        true
-    } else {
-        false
-    }
+    false
 }
 fn simulation_init(
     mut query: Query<Entity, Added<MinecraftEntityId>>,
@@ -241,12 +237,11 @@ impl Simulation {
     pub fn position(&self) -> Vec3 {
         *self.app.world.get::<Position>(self.entity).unwrap().clone()
     }
-    pub fn is_sprinting(&self) -> bool {
-        *self
-            .app
+    pub fn horizontal_collision(&self) -> bool {
+        self.app
             .world
-            .get::<Sprinting>(self.entity)
+            .get::<Physics>(self.entity)
             .unwrap()
-            .clone()
+            .horizontal_collision
     }
 }

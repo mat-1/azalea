@@ -13,8 +13,7 @@ use crate::ecs::{
     query::{With, Without},
     system::{Commands, Query, Res},
 };
-use astar::Edge;
-use azalea_core::{BlockPos, CardinalDirection};
+use azalea_core::{BlockPos, CardinalDirection, Vec3};
 use azalea_entity::metadata::Player;
 use azalea_entity::Local;
 use azalea_entity::{Physics, Position};
@@ -57,7 +56,8 @@ impl Plugin for PathfinderPlugin {
 /// A component that makes this entity able to pathfind.
 #[derive(Component, Default)]
 pub struct Pathfinder {
-    pub path: VecDeque<Node>,
+    pub path: VecDeque<astar::Movement<BlockPos, moves::MoveData>>,
+    current_target_node: Option<BlockPos>,
 }
 #[allow(clippy::type_complexity)]
 fn add_default_pathfinder(
@@ -96,7 +96,7 @@ pub struct GotoEvent {
 #[derive(Event)]
 pub struct PathFoundEvent {
     pub entity: Entity,
-    pub path: VecDeque<Node>,
+    pub path: VecDeque<astar::Movement<BlockPos, moves::MoveData>>,
 }
 
 #[derive(Component)]
@@ -114,10 +114,7 @@ fn goto_listener(
         let (position, world_name) = query
             .get_mut(event.entity)
             .expect("Called goto on an entity that's not in the world");
-        let start = Node {
-            pos: BlockPos::from(position),
-            vertical_vel: VerticalVel::None,
-        };
+        let start = BlockPos::from(position);
 
         let world_lock = instance_container
             .get(world_name)
@@ -150,32 +147,25 @@ fn goto_listener(
                 &moves::DiagonalMove(CardinalDirection::East),
                 &moves::DiagonalMove(CardinalDirection::South),
                 &moves::DiagonalMove(CardinalDirection::West),
+                //
+                &moves::ParkourForwardMove(CardinalDirection::North),
+                &moves::ParkourForwardMove(CardinalDirection::East),
+                &moves::ParkourForwardMove(CardinalDirection::South),
+                &moves::ParkourForwardMove(CardinalDirection::West),
             ];
 
-            let successors = |node: &Node| {
+            let successors = |node: BlockPos| {
                 let mut edges = Vec::new();
 
                 let world = world_lock.read();
                 for possible_move in &possible_moves {
-                    let possible_move = possible_move.get(&world, node);
-                    if let Some(possible_move) = possible_move {
-                        edges.push(Edge {
-                            target: possible_move.node,
-                            cost: possible_move.cost,
-                        });
+                    let edge = possible_move.get(&world, node);
+                    if let Some(edge) = edge {
+                        edges.push(edge);
                     }
                 }
                 edges
             };
-
-            // let mut pf = MTDStarLite::new(
-            //     start,
-            //     end,
-            //     |n| goal.heuristic(n),
-            //     successors,
-            //     successors,
-            //     |n| goal.success(n),
-            // );
 
             let start_time = std::time::Instant::now();
             let p = a_star(
@@ -185,8 +175,8 @@ fn goto_listener(
                 |n| goal.success(n),
             );
             let end_time = std::time::Instant::now();
-            debug!("path: {p:?}");
-            debug!("time: {:?}", end_time - start_time);
+            println!("path: {p:?}");
+            println!("time: {:?}", end_time - start_time);
 
             // convert the Option<Vec<Node>> to a VecDeque<Node>
             if let Some(p) = p {
@@ -231,47 +221,24 @@ fn path_found_listener(mut events: EventReader<PathFoundEvent>, mut query: Query
     }
 }
 
-/// Information about our vertical velocity
-#[derive(Eq, PartialEq, Hash, Clone, Copy, Debug)]
-pub enum VerticalVel {
-    None,
-    /// No vertical velocity, but we're not on the ground
-    NoneMidair,
-    // less than 3 blocks (no fall damage)
-    FallingLittle,
-}
-
-#[derive(Eq, PartialEq, Hash, Clone, Copy, Debug)]
-pub struct Node {
-    pub pos: BlockPos,
-    pub vertical_vel: VerticalVel,
-}
-
 pub trait Goal {
-    fn heuristic(&self, n: &Node) -> f32;
-    fn success(&self, n: &Node) -> bool;
+    fn heuristic(&self, n: BlockPos) -> f32;
+    fn success(&self, n: BlockPos) -> bool;
     // TODO: this should be removed and mtdstarlite should stop depending on
     // being given a goal node
-    fn goal_node(&self) -> Node;
+    fn goal_node(&self) -> BlockPos;
 }
 
-impl Node {
-    /// Returns whether the entity is at the node and should start going to the
-    /// next node.
-    #[must_use]
-    pub fn is_reached(&self, position: &Position, physics: &Physics) -> bool {
-        // println!(
-        //     "entity.delta.y: {} {:?}=={:?}, self.vertical_vel={:?}",
-        //     entity.delta.y,
-        //     BlockPos::from(entity.pos()),
-        //     self.pos,
-        //     self.vertical_vel
-        // );
-        BlockPos::from(position) == self.pos
-            && match self.vertical_vel {
-                VerticalVel::NoneMidair => physics.delta.y > -0.1 && physics.delta.y < 0.1,
-                VerticalVel::None => physics.on_ground,
-                VerticalVel::FallingLittle => physics.delta.y < -0.1,
-            }
-    }
+/// Returns whether the entity is at the node and should start going to the
+/// next node.
+#[must_use]
+pub fn is_reached(goal_pos: &BlockPos, current_pos: &Vec3, physics: &Physics) -> bool {
+    // println!(
+    //     "entity.delta.y: {} {:?}=={:?}, self.vertical_vel={:?}",
+    //     entity.delta.y,
+    //     BlockPos::from(entity.pos()),
+    //     self.pos,
+    //     self.vertical_vel
+    // );
+    &BlockPos::from(current_pos) == goal_pos && physics.on_ground
 }
