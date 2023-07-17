@@ -16,8 +16,7 @@ fn is_block_passable(pos: &BlockPos, world: &Instance) -> bool {
 /// whether this block has a solid hitbox (i.e. we can stand on it)
 fn is_block_solid(pos: &BlockPos, world: &Instance) -> bool {
     if let Some(block) = world.chunks.get_block_state(pos) {
-        // block.shape() == &collision::block_shape()
-        block.shape() != &collision::empty_shape()
+        block.shape() == &collision::block_shape()
     } else {
         false
     }
@@ -176,7 +175,7 @@ impl Move for ParkourForwardMove {
             return None;
         }
         // check to make sure we actually do have to jump
-        if !is_block_passable(&(node + BlockPos::new(self.0.x(), -1, self.0.z())), world) {
+        if is_block_solid(&(node + BlockPos::new(self.0.x(), -1, self.0.z())), world) {
             return None;
         }
         // check to make sure we can land
@@ -210,10 +209,10 @@ impl Move for ParkourForward2Move {
             return None;
         }
         // check to make sure we actually do have to jump
-        if !is_block_passable(&(node + BlockPos::new(self.0.x(), -1, self.0.z())), world) {
+        if is_block_solid(&(node + BlockPos::new(self.0.x(), -1, self.0.z())), world) {
             return None;
         }
-        if !is_block_passable(
+        if is_block_solid(
             &(node + BlockPos::new(self.0.x() * 2, -1, self.0.z() * 2)),
             world,
         ) {
