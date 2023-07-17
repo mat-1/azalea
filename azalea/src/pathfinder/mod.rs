@@ -34,7 +34,7 @@ use self::execute::tick_execute_path;
 pub struct PathfinderPlugin;
 impl Plugin for PathfinderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<GotoEvent>()
+        app.add_event::<SetPathfinderGoalEvent>()
             .add_event::<PathFoundEvent>()
             .add_systems(
                 FixedUpdate,
@@ -45,8 +45,8 @@ impl Plugin for PathfinderPlugin {
             .add_systems(
                 Update,
                 (
-                    goto_listener,
                     add_default_pathfinder,
+                    (goto_listener, start_computing_path).chain(),
                     (handle_tasks, path_found_listener).chain(),
                 ),
             );
@@ -57,6 +57,9 @@ impl Plugin for PathfinderPlugin {
 #[derive(Component, Default)]
 pub struct Pathfinder {
     pub path: VecDeque<astar::Movement<BlockPos, moves::MoveData>>,
+    /// The path that we're going to switch to after we finish the current
+    /// movement.
+    pub queued_path: Option<VecDeque<astar::Movement<BlockPos, moves::MoveData>>>,
     current_target_node: Option<BlockPos>,
 }
 #[allow(clippy::type_complexity)]
@@ -82,14 +85,14 @@ impl PathfinderClientExt for azalea_client::Client {
     /// # }
     /// ```
     fn goto(&self, goal: impl Goal + Send + Sync + 'static) {
-        self.ecs.lock().send_event(GotoEvent {
+        self.ecs.lock().send_event(SetPathfinderGoalEvent {
             entity: self.entity,
             goal: Arc::new(goal),
         });
     }
 }
 #[derive(Event)]
-pub struct GotoEvent {
+pub struct SetPathfinderGoalEvent {
     pub entity: Entity,
     pub goal: Arc<dyn Goal + Send + Sync>,
 }
@@ -99,29 +102,37 @@ pub struct PathFoundEvent {
     pub path: VecDeque<astar::Movement<BlockPos, moves::MoveData>>,
 }
 
+/// A component that exists while we're currently computing a path.
 #[derive(Component)]
 pub struct ComputePath(Task<Option<PathFoundEvent>>);
 
-fn goto_listener(
+/// The goal that we're going to compute right after the current computation
+/// ends (if there is one).
+#[derive(Component)]
+pub struct QueuedGoal(Arc<dyn Goal + Send + Sync>);
+
+fn goto_listener(mut commands: Commands, mut events: EventReader<SetPathfinderGoalEvent>) {
+    for event in events.iter() {
+        commands
+            .entity(event.entity)
+            .insert(QueuedGoal(event.goal.clone()));
+    }
+}
+
+fn start_computing_path(
     mut commands: Commands,
-    mut events: EventReader<GotoEvent>,
-    mut query: Query<(&Position, &InstanceName)>,
+    mut query: Query<(Entity, &QueuedGoal, &Position, &InstanceName), Without<ComputePath>>,
     instance_container: Res<InstanceContainer>,
 ) {
     let thread_pool = AsyncComputeTaskPool::get();
 
-    for event in events.iter() {
-        let (position, world_name) = query
-            .get_mut(event.entity)
-            .expect("Called goto on an entity that's not in the world");
+    for (entity, QueuedGoal(goal), position, world_name) in query.iter_mut() {
+        let goal = goal.clone();
         let start = BlockPos::from(position);
 
         let world_lock = instance_container
             .get(world_name)
             .expect("Entity tried to pathfind but the entity isn't in a valid world");
-
-        let goal = event.goal.clone();
-        let entity = event.entity;
 
         let task = thread_pool.spawn(async move {
             debug!("start: {start:?}");
@@ -221,7 +232,11 @@ fn path_found_listener(mut events: EventReader<PathFoundEvent>, mut query: Query
         let mut pathfinder = query
             .get_mut(event.entity)
             .expect("Path found for an entity that doesn't have a pathfinder");
-        pathfinder.path = event.path.clone();
+        if pathfinder.path.is_empty() {
+            pathfinder.path = event.path.clone();
+        } else {
+            pathfinder.queued_path = Some(event.path.clone());
+        }
     }
 }
 

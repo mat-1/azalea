@@ -4,7 +4,7 @@ use azalea_client::{
     movement::PhysicsState, SprintDirection, StartSprintEvent, StartWalkEvent, WalkDirection,
 };
 use azalea_core::{BlockPos, ResourceLocation, Vec3};
-use azalea_entity::{metadata::Sprinting, Attributes, LookDirection, Physics, Position};
+use azalea_entity::{metadata::Sprinting, Attributes, EyeHeight, LookDirection, Physics, Position};
 use azalea_world::{ChunkStorage, Instance, InstanceContainer, InstanceName, MinecraftEntityId};
 use bevy_app::{App, FixedUpdate, Update};
 use bevy_ecs::prelude::*;
@@ -21,6 +21,7 @@ pub fn tick_execute_path(
         Entity,
         &mut Pathfinder,
         &Position,
+        &EyeHeight,
         &Physics,
         &PhysicsState,
         &Attributes,
@@ -32,8 +33,16 @@ pub fn tick_execute_path(
     mut jump_events: EventWriter<JumpEvent>,
     instance_container: Res<InstanceContainer>,
 ) {
-    for (entity, mut pathfinder, position, physics, physics_state, attributes, instance_name) in
-        &mut query
+    for (
+        entity,
+        mut pathfinder,
+        position,
+        eye_height,
+        physics,
+        physics_state,
+        attributes,
+        instance_name,
+    ) in &mut query
     {
         let instance = instance_container.get(instance_name).unwrap();
         let simulated_bundle = SimulatedPlayerBundle {
@@ -86,7 +95,11 @@ pub fn tick_execute_path(
             let target = movement.target;
             look_at_events.send(LookAtEvent {
                 entity,
-                position: target.center(),
+                position: Vec3 {
+                    // look forward
+                    y: position.y + **eye_height as f64,
+                    ..target.center()
+                },
             });
             debug!("tick: pathfinder {entity:?}; going to {target:?}; currently at {position:?}");
             if movement.data.sprint {
@@ -102,13 +115,22 @@ pub fn tick_execute_path(
             }
 
             if crate::pathfinder::is_reached(&target, position, physics) {
-                pathfinder.path.pop_front();
-                if pathfinder.path.is_empty() {
-                    // println!("reached goal");
+                println!("reached node");
+                if let Some(new_path) = pathfinder.queued_path.take() {
                     walk_events.send(StartWalkEvent {
                         entity,
                         direction: WalkDirection::None,
                     });
+                    pathfinder.path = new_path;
+                } else {
+                    pathfinder.path.pop_front();
+                    if pathfinder.path.is_empty() {
+                        // println!("reached goal");
+                        walk_events.send(StartWalkEvent {
+                            entity,
+                            direction: WalkDirection::None,
+                        });
+                    }
                 }
                 // tick again, maybe we already reached the next node!
             } else {

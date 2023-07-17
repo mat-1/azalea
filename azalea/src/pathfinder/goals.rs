@@ -1,4 +1,4 @@
-use azalea_core::BlockPos;
+use azalea_core::{BlockPos, Vec3};
 
 use super::Goal;
 
@@ -23,17 +23,19 @@ impl From<BlockPos> for BlockPosGoal {
 }
 
 pub struct RadiusGoal {
-    pub pos: BlockPos,
+    pub pos: Vec3,
     pub radius: f32,
 }
 impl Goal for RadiusGoal {
     fn heuristic(&self, n: BlockPos) -> f32 {
+        let n = n.center();
         let dx = (self.pos.x - n.x) as f32;
         let dy = (self.pos.y - n.y) as f32;
         let dz = (self.pos.z - n.z) as f32;
         dx * dx + dy * dy + dz * dz
     }
     fn success(&self, n: BlockPos) -> bool {
+        let n = n.center();
         let dx = (self.pos.x - n.x) as f32;
         let dy = (self.pos.y - n.y) as f32;
         let dz = (self.pos.z - n.z) as f32;
@@ -41,40 +43,32 @@ impl Goal for RadiusGoal {
     }
 }
 
-pub struct InverseGoal<T: Goal> {
-    pub goal: T,
-}
+pub struct InverseGoal<T: Goal>(pub T);
 impl<T: Goal> Goal for InverseGoal<T> {
     fn heuristic(&self, n: BlockPos) -> f32 {
-        -self.goal.heuristic(n)
+        -self.0.heuristic(n)
     }
     fn success(&self, n: BlockPos) -> bool {
-        !self.goal.success(n)
+        !self.0.success(n)
     }
 }
 
-pub struct OrGoal<T: Goal, U: Goal> {
-    pub goal1: T,
-    pub goal2: U,
-}
+pub struct OrGoal<T: Goal, U: Goal>(pub T, pub U);
 impl<T: Goal, U: Goal> Goal for OrGoal<T, U> {
     fn heuristic(&self, n: BlockPos) -> f32 {
-        self.goal1.heuristic(n).min(self.goal2.heuristic(n))
+        self.0.heuristic(n).min(self.1.heuristic(n))
     }
     fn success(&self, n: BlockPos) -> bool {
-        self.goal1.success(n) || self.goal2.success(n)
+        self.0.success(n) || self.1.success(n)
     }
 }
 
-pub struct AndGoal<T: Goal, U: Goal> {
-    pub goal1: T,
-    pub goal2: U,
-}
+pub struct AndGoal<T: Goal, U: Goal>(pub T, pub U);
 impl<T: Goal, U: Goal> Goal for AndGoal<T, U> {
     fn heuristic(&self, n: BlockPos) -> f32 {
-        self.goal1.heuristic(n).max(self.goal2.heuristic(n))
+        self.0.heuristic(n).max(self.1.heuristic(n))
     }
     fn success(&self, n: BlockPos) -> bool {
-        self.goal1.success(n) && self.goal2.success(n)
+        self.0.success(n) && self.1.success(n)
     }
 }
