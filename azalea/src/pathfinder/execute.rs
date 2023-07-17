@@ -108,6 +108,7 @@ pub fn tick_execute_path(
                     direction: SprintDirection::Forward,
                 });
             } else {
+                println!("not sprinting");
                 walk_events.send(StartWalkEvent {
                     entity,
                     direction: WalkDirection::Forward,
@@ -115,22 +116,17 @@ pub fn tick_execute_path(
             }
 
             if crate::pathfinder::is_reached(&target, position, physics) {
-                println!("reached node");
                 if let Some(new_path) = pathfinder.queued_path.take() {
+                    pathfinder.path = new_path;
+                } else {
+                    pathfinder.path.pop_front();
+                }
+                if pathfinder.path.is_empty() {
+                    // println!("reached goal");
                     walk_events.send(StartWalkEvent {
                         entity,
                         direction: WalkDirection::None,
                     });
-                    pathfinder.path = new_path;
-                } else {
-                    pathfinder.path.pop_front();
-                    if pathfinder.path.is_empty() {
-                        // println!("reached goal");
-                        walk_events.send(StartWalkEvent {
-                            entity,
-                            direction: WalkDirection::None,
-                        });
-                    }
                 }
                 // tick again, maybe we already reached the next node!
             } else {

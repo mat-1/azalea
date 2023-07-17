@@ -53,7 +53,7 @@ const JUMP_COST: f32 = 0.5;
 const WALK_ONE_BLOCK_COST: f32 = 1.0;
 const FALL_ONE_BLOCK_COST: f32 = 0.5;
 
-type Edge = astar::Edge<BlockPos, MoveData, f32>;
+type Edge = astar::Edge<BlockPos, MoveData>;
 
 pub trait Move: Send + Sync {
     fn get(&self, world: &Instance, node: BlockPos) -> Option<Edge>;
