@@ -36,7 +36,7 @@ impl Plugin for BotPlugin {
                     look_at_listener
                         .before(force_jump_listener)
                         .before(clamp_look_direction),
-                    jump_listener,
+                    jump_listener.before(force_jump_listener),
                 ),
             )
             .add_systems(FixedUpdate, stop_jumping.after(PhysicsSet));
@@ -137,7 +137,10 @@ impl BotClientExt for azalea_client::Client {
 #[derive(Event)]
 pub struct JumpEvent(pub Entity);
 
-fn jump_listener(mut query: Query<(&mut Jumping, &mut Bot)>, mut events: EventReader<JumpEvent>) {
+pub fn jump_listener(
+    mut query: Query<(&mut Jumping, &mut Bot)>,
+    mut events: EventReader<JumpEvent>,
+) {
     for event in events.iter() {
         if let Ok((mut jumping, mut bot)) = query.get_mut(event.0) {
             **jumping = true;

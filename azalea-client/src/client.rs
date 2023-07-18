@@ -708,6 +708,18 @@ impl Plugin for AmbiguityLoggerPlugin {
                 ..Default::default()
             });
         });
+        app.edit_schedule(Update, |schedule| {
+            schedule.set_build_settings(ScheduleBuildSettings {
+                ambiguity_detection: LogLevel::Warn,
+                ..Default::default()
+            });
+        });
+        app.edit_schedule(FixedUpdate, |schedule| {
+            schedule.set_build_settings(ScheduleBuildSettings {
+                ambiguity_detection: LogLevel::Warn,
+                ..Default::default()
+            });
+        });
     }
 }
 

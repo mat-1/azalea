@@ -34,7 +34,8 @@ async fn handle(mut bot: Client, event: Event, _state: State) -> anyhow::Result<
             let pos = *bot.entity_component::<Position>(player);
 
             // bot.goto(goals::AndGoal(
-            //     goals::RadiusGoal { pos, radius: 10. },
+            //     // stay close
+            //     goals::RadiusGoal { pos, radius: 5. },
             //     // but not too close
             //     goals::InverseGoal(goals::RadiusGoal { pos, radius: 2. }),
             // ));

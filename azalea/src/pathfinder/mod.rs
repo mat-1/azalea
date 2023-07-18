@@ -24,10 +24,10 @@ use bevy_ecs::prelude::Event;
 use bevy_ecs::schedule::IntoSystemConfigs;
 use bevy_tasks::{AsyncComputeTaskPool, Task};
 use futures_lite::future;
-use log::{debug, error};
+use log::debug;
 use std::collections::VecDeque;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use self::execute::tick_execute_path;
 
@@ -41,14 +41,18 @@ impl Plugin for PathfinderPlugin {
                 FixedUpdate,
                 // putting systems in the FixedUpdate schedule makes them run every Minecraft tick
                 // (every 50 milliseconds).
-                (tick_execute_path.before(PhysicsSet), start_computing_path),
+                (
+                    tick_execute_path
+                        .before(PhysicsSet)
+                        .after(start_computing_path),
+                    start_computing_path,
+                ),
             )
             .add_systems(
                 Update,
                 (
                     add_default_pathfinder,
-                    goto_listener,
-                    (handle_tasks, path_found_listener).chain(),
+                    (goto_listener, handle_tasks, path_found_listener).chain(),
                 ),
             );
     }
@@ -61,7 +65,11 @@ pub struct Pathfinder {
     /// The path that we're going to switch to after we finish the current
     /// movement.
     pub queued_path: Option<VecDeque<astar::Movement<BlockPos, moves::MoveData>>>,
+
     current_target_node: Option<BlockPos>,
+    last_node_reached_at: Option<Instant>,
+
+    goal: Option<Arc<dyn Goal + Send + Sync>>,
 
     computing: bool,
 }
@@ -90,14 +98,14 @@ impl PathfinderClientExt for azalea_client::Client {
     fn goto(&self, goal: impl Goal + Send + Sync + 'static) {
         self.ecs.lock().send_event(SetPathfinderGoalEvent {
             entity: self.entity,
-            goal: Arc::new(goal),
+            goal: Some(Arc::new(goal)),
         });
     }
 }
 #[derive(Event)]
 pub struct SetPathfinderGoalEvent {
     pub entity: Entity,
-    pub goal: Arc<dyn Goal + Send + Sync>,
+    pub goal: Option<Arc<dyn Goal + Send + Sync>>,
 }
 #[derive(Event)]
 pub struct PathFoundEvent {
@@ -110,39 +118,35 @@ pub struct PathFoundEvent {
 #[derive(Component)]
 pub struct ComputePath(Task<Option<PathFoundEvent>>);
 
-/// The goal that we're going to compute right after the current computation
-/// ends (if there is one).
-#[derive(Component)]
-pub struct QueuedGoal(Arc<dyn Goal + Send + Sync>);
-
-fn goto_listener(mut commands: Commands, mut events: EventReader<SetPathfinderGoalEvent>) {
+fn goto_listener(
+    mut query: Query<&mut Pathfinder>,
+    mut events: EventReader<SetPathfinderGoalEvent>,
+) {
     for event in events.iter() {
-        commands
-            .entity(event.entity)
-            .insert(QueuedGoal(event.goal.clone()));
+        let mut pathfinder = query
+            .get_mut(event.entity)
+            .expect("SetPathfinderGoalEvent for an entity that doesn't have a pathfinder");
+        pathfinder.goal = event.goal.clone();
     }
 }
 
 fn start_computing_path(
     mut commands: Commands,
-    mut query: Query<(
-        Entity,
-        &QueuedGoal,
-        &Position,
-        &InstanceName,
-        &mut Pathfinder,
-    )>,
+    mut query: Query<(Entity, &Position, &InstanceName, &mut Pathfinder)>,
     instance_container: Res<InstanceContainer>,
 ) {
     let thread_pool = AsyncComputeTaskPool::get();
 
-    for (entity, QueuedGoal(goal), position, world_name, mut pathfinder) in query.iter_mut() {
+    for (entity, position, world_name, mut pathfinder) in query.iter_mut() {
         if pathfinder.computing {
             // compute this later, we're already computing something else
             continue;
         }
+        let Some(goal) = pathfinder.goal.clone() else {
+            continue;
+        };
         pathfinder.computing = true;
-        commands.entity(entity).remove::<QueuedGoal>();
+        // commands.entity(entity).remove::<QueuedGoal>();
 
         let goal = goal.clone();
         let start = BlockPos::from(position);
@@ -152,7 +156,7 @@ fn start_computing_path(
             .expect("Entity tried to pathfind but the entity isn't in a valid world");
 
         let task = thread_pool.spawn(async move {
-            println!("start: {start:?}");
+            // println!("start: {start:?}");
 
             let possible_moves: Vec<&dyn moves::Move> = vec![
                 &moves::ForwardMove(CardinalDirection::North),
@@ -200,7 +204,10 @@ fn start_computing_path(
             };
 
             let start_time = std::time::Instant::now();
-            let p = a_star(
+            let astar::Path {
+                movements,
+                partial: _,
+            } = a_star(
                 start,
                 |n| goal.heuristic(n),
                 successors,
@@ -208,21 +215,16 @@ fn start_computing_path(
                 Duration::from_millis(250),
             );
             let end_time = std::time::Instant::now();
-            debug!("path: {p:?}");
-            println!("time: {:?}", end_time - start_time);
+            debug!("path: {movements:?}");
+            debug!("time: {:?}", end_time - start_time);
 
             // convert the Option<Vec<Node>> to a VecDeque<Node>
-            if let Some(p) = p {
-                let path = p.into_iter().collect::<VecDeque<_>>();
-                // commands.entity(event.entity).insert(Pathfinder { path: p });
-                Some(PathFoundEvent {
-                    entity,
-                    path: Some(path),
-                })
-            } else {
-                error!("no path found");
-                Some(PathFoundEvent { entity, path: None })
-            }
+            let path = movements.into_iter().collect::<VecDeque<_>>();
+            // commands.entity(event.entity).insert(Pathfinder { path: p });
+            Some(PathFoundEvent {
+                entity,
+                path: Some(path),
+            })
         });
 
         commands.spawn(ComputePath(task));
@@ -253,14 +255,13 @@ fn path_found_listener(mut events: EventReader<PathFoundEvent>, mut query: Query
         let mut pathfinder = query
             .get_mut(event.entity)
             .expect("Path found for an entity that doesn't have a pathfinder");
+        // println!("path found: {:?}", event.path);
         pathfinder.computing = false;
         if let Some(path) = event.path.clone() {
             if pathfinder.path.is_empty() {
-                println!("set path immediately (because it's empty) {path:?}");
                 pathfinder.path = path;
             } else {
                 pathfinder.queued_path = Some(path);
-                println!("queued path");
             }
         }
     }

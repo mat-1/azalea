@@ -8,13 +8,21 @@ use std::{
 
 use priority_queue::PriorityQueue;
 
+pub struct Path<P, M>
+where
+    P: Eq + Hash + Copy + Debug,
+{
+    pub movements: Vec<Movement<P, M>>,
+    pub partial: bool,
+}
+
 pub fn a_star<P, M, HeuristicFn, SuccessorsFn, SuccessFn>(
     start: P,
     heuristic: HeuristicFn,
     successors: SuccessorsFn,
     success: SuccessFn,
     timeout: Duration,
-) -> Option<Vec<Movement<P, M>>>
+) -> Path<P, M>
 where
     P: Eq + Hash + Copy + Debug,
     HeuristicFn: Fn(P) -> f32,
@@ -37,12 +45,15 @@ where
         },
     );
 
-    let mut best_node = None;
-    let mut best_node_score = f32::MAX;
+    let mut best_node = start;
+    let mut best_node_score = heuristic(start);
 
     while let Some((current_node, _)) = open_set.pop() {
         if success(current_node) {
-            return Some(reconstruct_path(nodes, current_node));
+            return Path {
+                movements: reconstruct_path(nodes, current_node),
+                partial: false,
+            };
         }
 
         let current_g_score = nodes
@@ -73,7 +84,7 @@ where
 
                 let node_score = heuristic + tentative_g_score / 1.5;
                 if node_score < best_node_score {
-                    best_node = Some(neighbor.movement.target);
+                    best_node = neighbor.movement.target;
                     best_node_score = node_score;
                 }
             }
@@ -82,14 +93,14 @@ where
         if start_time.elapsed() > timeout {
             // timeout, just return the best path we have so far
             println!("timeout");
-            let Some(best_node) = best_node else {
-                return None;
-            };
-            return Some(reconstruct_path(nodes, best_node));
+            break;
         }
     }
 
-    None
+    Path {
+        movements: reconstruct_path(nodes, best_node),
+        partial: true,
+    }
 }
 
 fn reconstruct_path<P, M>(mut nodes: HashMap<P, Node<P, M>>, current: P) -> Vec<Movement<P, M>>

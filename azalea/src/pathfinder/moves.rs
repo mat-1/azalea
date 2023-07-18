@@ -7,7 +7,17 @@ use super::astar::{self, Movement};
 /// whether this block is passable
 fn is_block_passable(pos: &BlockPos, world: &Instance) -> bool {
     if let Some(block) = world.chunks.get_block_state(pos) {
-        block.shape() == &collision::empty_shape()
+        if block.shape() != &collision::empty_shape() {
+            return false;
+        }
+        let block = Box::<dyn azalea_block::Block>::from(block);
+        if block
+            .downcast_ref::<azalea_block::blocks::Water>()
+            .is_some()
+        {
+            return false;
+        }
+        true
     } else {
         false
     }
@@ -100,7 +110,12 @@ impl Move for AscendMove {
     fn get(&self, world: &Instance, node: BlockPos) -> Option<Edge> {
         let offset = BlockPos::new(self.0.x(), 1, self.0.z());
 
-        if !is_block_passable(&node.up(2), world) || !is_standable(&(node + offset), world) {
+        // block above player
+        if !is_block_passable(&node.up(2), world) {
+            return None;
+        }
+        // target position
+        if !is_standable(&(node + offset), world) {
             return None;
         }
 
@@ -131,8 +146,12 @@ impl Move for DescendMove {
         }
         let new_position = new_horizontal_position.down(fall_distance as i32);
 
-        // check whether 3 blocks vertically forward are passable
+        // check whether 2 blocks vertically forward are passable
         if !is_passable(&new_horizontal_position, world) {
+            return None;
+        }
+        // check whether we can stand on the target position
+        if !is_standable(&new_position, world) {
             return None;
         }
 
@@ -187,6 +206,11 @@ impl Move for ParkourForwardMove {
         if !is_passable(&(node + BlockPos::new(self.0.x(), 0, self.0.z())), world) {
             return None;
         }
+        // we can't jump last tick
+        if !is_block_passable(&node.up(1), world) {
+            return None;
+        }
+
         // check to make sure we actually do have to jump
         if is_block_solid(&(node + BlockPos::new(self.0.x(), -1, self.0.z())), world) {
             return None;
@@ -224,6 +248,22 @@ impl Move for ParkourForward2Move {
         ) {
             return None;
         }
+
+        // we can't jump last tick
+        if !is_block_passable(&node.up(1), world) {
+            return None;
+        }
+        // we can't do headhitter jumps
+        if !is_block_passable(&(node + BlockPos::new(self.0.x(), 2, self.0.z())), world) {
+            return None;
+        }
+        if !is_block_passable(
+            &(node + BlockPos::new(self.0.x() * 2, 2, self.0.z() * 2)),
+            world,
+        ) {
+            return None;
+        }
+
         // check to make sure we actually do have to jump
         if is_block_solid(&(node + BlockPos::new(self.0.x(), -1, self.0.z())), world) {
             return None;

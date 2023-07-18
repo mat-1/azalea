@@ -2,23 +2,16 @@ use azalea_core::{BlockPos, Vec3};
 
 use super::Goal;
 
-pub struct BlockPosGoal {
-    pub pos: BlockPos,
-}
+pub struct BlockPosGoal(pub BlockPos);
 impl Goal for BlockPosGoal {
     fn heuristic(&self, n: BlockPos) -> f32 {
-        let dx = (self.pos.x - n.x) as f32;
-        let dy = (self.pos.y - n.y) as f32;
-        let dz = (self.pos.z - n.z) as f32;
+        let dx = (self.0.x - n.x) as f32;
+        let dy = (self.0.y - n.y) as f32;
+        let dz = (self.0.z - n.z) as f32;
         dx * dx + dy * dy + dz * dz
     }
     fn success(&self, n: BlockPos) -> bool {
-        n == self.pos
-    }
-}
-impl From<BlockPos> for BlockPosGoal {
-    fn from(pos: BlockPos) -> Self {
-        Self { pos }
+        n == self.0
     }
 }
 

@@ -66,6 +66,8 @@ fn travel(
         //     return;
         // }
 
+        println!("travel");
+
         let gravity: f64 = 0.08;
 
         // TODO: slow falling effect

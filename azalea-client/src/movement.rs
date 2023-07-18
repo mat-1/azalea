@@ -53,8 +53,12 @@ impl Plugin for PlayerMovePlugin {
             .add_systems(
                 FixedUpdate,
                 (
-                    local_player_ai_step.in_set(PhysicsSet),
-                    send_position.after(update_in_loaded_chunk),
+                    local_player_ai_step
+                        .in_set(PhysicsSet)
+                        .before(azalea_physics::ai_step),
+                    send_position
+                        .after(update_in_loaded_chunk)
+                        .after(PhysicsSet),
                 )
                     .chain(),
             );
