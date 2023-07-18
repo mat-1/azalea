@@ -9,9 +9,18 @@ async fn main() {
 
     ClientBuilder::new()
         .set_handler(handle)
+        .add_plugins(DebugdumpPlugin)
         .start(account, "localhost")
         .await
         .unwrap();
+}
+
+pub struct DebugdumpPlugin;
+impl azalea::app::Plugin for DebugdumpPlugin {
+    fn build(&self, app: &mut bevy_app::App) {
+        bevy_mod_debugdump::print_schedule_graph(app, bevy_app::FixedUpdate);
+        std::process::exit(0);
+    }
 }
 
 #[derive(Default, Clone, Component)]

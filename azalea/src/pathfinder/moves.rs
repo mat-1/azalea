@@ -10,11 +10,10 @@ fn is_block_passable(pos: &BlockPos, world: &Instance) -> bool {
         if block.shape() != &collision::empty_shape() {
             return false;
         }
-        let block = Box::<dyn azalea_block::Block>::from(block);
-        if block
-            .downcast_ref::<azalea_block::blocks::Water>()
-            .is_some()
-        {
+        if block == azalea_registry::Block::Water.into() {
+            return false;
+        }
+        if block.waterlogged() {
             return false;
         }
         true

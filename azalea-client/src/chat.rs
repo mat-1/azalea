@@ -174,7 +174,11 @@ impl Plugin for ChatPlugin {
                 Update,
                 (
                     handle_send_chat_event,
-                    handle_send_chat_kind_event.after(handle_send_packet_event),
+                    handle_send_chat_kind_event
+                        .before(handle_send_packet_event)
+                        .after(crate::respawn::perform_respawn)
+                        .after(crate::mining::MiningSet)
+                        .after(crate::interact::handle_swing_arm_event),
                 )
                     .chain(),
             );

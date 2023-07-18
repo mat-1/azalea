@@ -33,7 +33,7 @@ impl Plugin for PhysicsPlugin {
         app.add_event::<ForceJumpEvent>()
             .add_systems(
                 Update,
-                force_jump_listener
+                handle_force_jump
                     .before(update_bounding_box)
                     .after(clamp_look_direction),
             )
@@ -65,8 +65,6 @@ fn travel(
         //     // this.calculateEntityAnimation(this, this instanceof FlyingAnimal);
         //     return;
         // }
-
-        println!("travel");
 
         let gravity: f64 = 0.08;
 
@@ -171,7 +169,7 @@ pub fn ai_step(
 #[derive(Event)]
 pub struct ForceJumpEvent(pub Entity);
 
-pub fn force_jump_listener(
+pub fn handle_force_jump(
     mut query: Query<(
         &mut Physics,
         &Position,

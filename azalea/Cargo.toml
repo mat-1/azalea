@@ -42,6 +42,7 @@ uuid = "1.4.0"
 bevy_log = "0.11.0"
 azalea-entity = { version = "0.1.0", path = "../azalea-entity" }
 bevy_time = "0.11.0"
+bevy_mod_debugdump = "0.8.0"
 
 [features]
 default = ["log"]

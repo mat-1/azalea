@@ -58,6 +58,7 @@ pub fn tick_execute_path(
 
         if pathfinder.last_node_reached_at.is_none() {
             pathfinder.last_node_reached_at = Some(Instant::now());
+            pathfinder.last_reached_node = Some(BlockPos::from(*position));
         }
 
         // quit early if there's no path
@@ -79,8 +80,12 @@ pub fn tick_execute_path(
                     println!("reached node {:?}", movement.target);
                     pathfinder.path = pathfinder.path.split_off(i + 1);
                     pathfinder.last_node_reached_at = Some(Instant::now());
+                    pathfinder.last_reached_node = Some(movement.target);
                     if let Some(new_path) = pathfinder.queued_path.take() {
-                        println!("swapped path to {new_path:?}");
+                        println!(
+                            "swapped path to {:?}",
+                            new_path.iter().take(10).collect::<Vec<_>>()
+                        );
                         pathfinder.path = new_path;
                         pathfinder.current_target_node = None;
 
@@ -112,13 +117,16 @@ pub fn tick_execute_path(
 
         if pathfinder.last_node_reached_at.unwrap().elapsed() > Duration::from_secs(2) {
             pathfinder.last_node_reached_at = Some(Instant::now());
+            pathfinder.current_target_node = None;
+            pathfinder.last_reached_node = None;
             if let Some(new_path) = pathfinder.queued_path.take() {
                 pathfinder.path = new_path;
-                pathfinder.current_target_node = None;
-                println!("stuck, swapped path to {:?}", pathfinder.path);
+                println!(
+                    "stuck, swapped path to {:?}",
+                    pathfinder.path.iter().take(10).collect::<Vec<_>>()
+                );
             } else {
                 pathfinder.path.clear();
-                pathfinder.current_target_node = None;
                 println!("stuck, cleared path");
             }
         }
@@ -165,8 +173,9 @@ pub fn tick_execute_path(
 
         let (y_rot, _) = crate::bot::direction_looking_at(&position, &target.center());
         (look_direction.y_rot, look_direction.x_rot) = (y_rot, 0.);
+        println!("y rot: {y_rot}");
 
-        debug!("tick: pathfinder {entity:?}; going to {target:?}; currently at {position:?}");
+        println!("tick: pathfinder {entity:?}; going to {target:?}; currently at {position:?}");
         if movement.data.sprint {
             sprint_events.send(StartSprintEvent {
                 entity,

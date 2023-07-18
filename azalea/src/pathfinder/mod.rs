@@ -43,9 +43,10 @@ impl Plugin for PathfinderPlugin {
                 // (every 50 milliseconds).
                 (
                     tick_execute_path
-                        .before(PhysicsSet)
-                        .after(start_computing_path),
-                    start_computing_path,
+                        .after(PhysicsSet)
+                        .after(start_computing_path)
+                        .after(azalea_client::movement::send_position),
+                    start_computing_path.after(PhysicsSet),
                 ),
             )
             .add_systems(
@@ -67,6 +68,7 @@ pub struct Pathfinder {
     pub queued_path: Option<VecDeque<astar::Movement<BlockPos, moves::MoveData>>>,
 
     current_target_node: Option<BlockPos>,
+    last_reached_node: Option<BlockPos>,
     last_node_reached_at: Option<Instant>,
 
     goal: Option<Arc<dyn Goal + Send + Sync>>,
@@ -149,7 +151,22 @@ fn start_computing_path(
         // commands.entity(entity).remove::<QueuedGoal>();
 
         let goal = goal.clone();
-        let start = BlockPos::from(position);
+
+        let last_node_reached_at_timed_out =
+            if let Some(last_node_reached_at) = pathfinder.last_node_reached_at {
+                last_node_reached_at.elapsed() > Duration::from_secs(2)
+            } else {
+                true
+            };
+
+        let start = if last_node_reached_at_timed_out {
+            BlockPos::from(position)
+        } else {
+            pathfinder
+                .last_reached_node
+                .unwrap_or(BlockPos::from(position))
+        };
+        // println!("start: {:?}", start);
 
         let world_lock = instance_container
             .get(world_name)

@@ -205,7 +205,7 @@ fn remove_player_listener(
     }
 }
 
-fn death_listener(query: Query<&LocalPlayerEvents>, mut events: EventReader<DeathEvent>) {
+pub fn death_listener(query: Query<&LocalPlayerEvents>, mut events: EventReader<DeathEvent>) {
     for event in events.iter() {
         if let Ok(local_player_events) = query.get(event.entity) {
             local_player_events

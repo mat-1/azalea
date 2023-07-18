@@ -8,7 +8,7 @@ mod enchantments;
 mod info;
 pub mod metadata;
 pub mod mining;
-mod systems;
+pub mod systems;
 
 use self::{attributes::AttributeInstance, metadata::Health};
 pub use attributes::Attributes;

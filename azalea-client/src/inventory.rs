@@ -20,7 +20,7 @@ use bevy_ecs::{
     entity::Entity,
     event::EventReader,
     prelude::{Event, EventWriter},
-    schedule::IntoSystemConfigs,
+    schedule::{IntoSystemConfigs, SystemSet},
     system::Query,
 };
 use log::warn;
@@ -44,10 +44,14 @@ impl Plugin for InventoryPlugin {
                     handle_container_close_event.before(handle_send_packet_event),
                     handle_client_side_close_container_event,
                 )
-                    .chain(),
+                    .chain()
+                    .in_set(InventorySet),
             );
     }
 }
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct InventorySet;
 
 impl Client {
     /// Return the menu that is currently open. If no menu is open, this will

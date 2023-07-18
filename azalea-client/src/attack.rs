@@ -3,6 +3,7 @@ use azalea_entity::{
     metadata::{ShiftKeyDown, Sprinting},
     Attributes, Physics,
 };
+use azalea_physics::PhysicsSet;
 use azalea_protocol::packets::game::serverbound_interact_packet::{
     self, ServerboundInteractPacket,
 };
@@ -21,12 +22,19 @@ pub struct AttackPlugin;
 impl Plugin for AttackPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<AttackEvent>()
-            .add_systems(Update, handle_attack_event)
+            .add_systems(
+                Update,
+                handle_attack_event
+                    .after(crate::movement::walk_listener)
+                    .before(crate::interact::handle_swing_arm_event)
+                    .before(azalea_physics::handle_force_jump)
+                    .after(crate::respawn::perform_respawn),
+            )
             .add_systems(
                 FixedUpdate,
                 (
                     increment_ticks_since_last_attack,
-                    update_attack_strength_scale,
+                    update_attack_strength_scale.after(PhysicsSet),
                 )
                     .chain(),
             );

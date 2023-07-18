@@ -2,7 +2,7 @@ use std::{io, sync::Arc};
 
 use azalea_auth::game_profile::GameProfile;
 use azalea_core::{ChunkPos, GameMode};
-use azalea_entity::{Dead, Position};
+use azalea_entity::{Dead, Local, Position};
 use azalea_protocol::packets::game::ServerboundGamePacket;
 use azalea_world::{Instance, InstanceContainer, InstanceName, PartialInstance};
 use bevy_ecs::{
@@ -10,7 +10,7 @@ use bevy_ecs::{
     entity::Entity,
     event::EventReader,
     prelude::Event,
-    query::Added,
+    query::{Added, With},
     system::{Query, Res},
 };
 use derive_more::{Deref, DerefMut};
@@ -116,7 +116,7 @@ impl Drop for LocalPlayer {
 /// Update the [`LocalPlayerInLoadedChunk`] component for all [`LocalPlayer`]s.
 pub fn update_in_loaded_chunk(
     mut commands: bevy_ecs::system::Commands,
-    query: Query<(Entity, &InstanceName, &Position)>,
+    query: Query<(Entity, &InstanceName, &Position), With<Local>>,
     instance_container: Res<InstanceContainer>,
 ) {
     for (entity, local_player, position) in &query {
@@ -129,6 +129,7 @@ pub fn update_in_loaded_chunk(
         if in_loaded_chunk {
             commands.entity(entity).insert(LocalPlayerInLoadedChunk);
         } else {
+            println!("no longer in loaded chunk");
             commands.entity(entity).remove::<LocalPlayerInLoadedChunk>();
         }
     }
