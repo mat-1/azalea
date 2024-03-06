@@ -335,7 +335,7 @@ fn handle_on_climbable(
 
     // sneaking on ladders/vines
     if y < 0.0
-        && pose.copied() == Some(Pose::Sneaking)
+        && pose.copied() == Some(Pose::Crouching)
         && azalea_registry::Block::from(
             world
                 .chunks

@@ -136,10 +136,18 @@ pub fn register(commands: &mut CommandDispatcher<Mutex<CommandSource>>) {
                 tokio::time::sleep(Duration::from_secs_f32(seconds)).await;
                 bot.walk(WalkDirection::None);
             });
-            source.reply(&format!("ok, spriting for {seconds} seconds"));
+            source.reply(&format!("ok, sprinting for {seconds} seconds"));
             1
         })),
     );
+
+    commands.register(literal("sneak").executes(|ctx: &Ctx| {
+        let source = ctx.source.lock();
+        let mut bot = source.bot.clone();
+        bot.sneak(!bot.sneaking());
+        source.reply("ok");
+        1
+    }));
 
     commands.register(literal("north").executes(|ctx: &Ctx| {
         let mut source = ctx.source.lock();

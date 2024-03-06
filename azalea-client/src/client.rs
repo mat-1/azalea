@@ -30,7 +30,7 @@ use azalea_core::{position::Vec3, tick::GameTick};
 use azalea_entity::{
     indexing::{EntityIdIndex, EntityUuidIndex},
     metadata::Health,
-    EntityPlugin, EntityUpdateSet, EyeHeight, LocalEntity, Position,
+    EntityPlugin, EntityUpdateSet, EyeHeight, LocalEntity, Position, Sneaking,
 };
 use azalea_physics::PhysicsPlugin;
 use azalea_protocol::{
@@ -640,6 +640,7 @@ pub struct JoinedClientBundle {
     pub permission_level: PermissionLevel,
     pub chunk_batch_info: ChunkBatchInfo,
     pub hunger: Hunger,
+    pub sneaking: Sneaking,
 
     pub entity_id_index: EntityIdIndex,
 

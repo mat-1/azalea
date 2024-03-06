@@ -1,9 +1,12 @@
 use crate::client::Client;
+use crate::inventory::InventoryComponent;
+use crate::local_player::PlayerAbilities;
 use crate::packet_handling::game::SendPacketEvent;
 use azalea_core::position::Vec3;
 use azalea_core::tick::GameTick;
+use azalea_entity::metadata::{ShiftKeyDown, Sleeping, SleepingPos, Swimming};
 use azalea_entity::{metadata::Sprinting, Attributes, Jumping};
-use azalea_entity::{InLoadedChunk, LastSentPosition, LookDirection, Physics, Position};
+use azalea_entity::{InLoadedChunk, LastSentPosition, LookDirection, Physics, Position, Sneaking};
 use azalea_physics::{ai_step, PhysicsSet};
 use azalea_protocol::packets::game::serverbound_player_command_packet::ServerboundPlayerCommandPacket;
 use azalea_protocol::packets::game::{
@@ -12,10 +15,11 @@ use azalea_protocol::packets::game::{
     serverbound_move_player_rot_packet::ServerboundMovePlayerRotPacket,
     serverbound_move_player_status_only_packet::ServerboundMovePlayerStatusOnlyPacket,
 };
-use azalea_world::{MinecraftEntityId, MoveEntityError};
+use azalea_world::{InstanceContainer, InstanceName, MinecraftEntityId, MoveEntityError};
 use bevy_app::{App, Plugin, Update};
 use bevy_ecs::prelude::{Event, EventWriter};
 use bevy_ecs::schedule::SystemSet;
+use bevy_ecs::system::Res;
 use bevy_ecs::{
     component::Component, entity::Entity, event::EventReader, query::With,
     schedule::IntoSystemConfigs, system::Query,
@@ -57,11 +61,13 @@ impl Plugin for PlayerMovePlugin {
             .add_systems(
                 GameTick,
                 (
-                    (tick_controls, local_player_ai_step)
+                    (update_sneaking, tick_controls, local_player_ai_step)
                         .chain()
                         .in_set(PhysicsSet)
                         .before(ai_step),
-                    send_sprinting_if_needed.after(azalea_entity::update_in_loaded_chunk),
+                    (send_sprinting_if_needed, send_shift_key_down_if_needed)
+                        .chain()
+                        .after(azalea_entity::update_in_loaded_chunk),
                     send_position.after(PhysicsSet),
                 )
                     .chain(),
@@ -117,7 +123,7 @@ pub struct LastSentLookDirection {
     pub y_rot: f32,
 }
 
-/// Component for entities that can move and sprint. Usually only in
+/// Component for entities that can move, sprint, and sneak. Usually only in
 /// [`LocalEntity`]s.
 ///
 /// [`LocalEntity`]: azalea_entity::LocalEntity
@@ -126,7 +132,15 @@ pub struct PhysicsState {
     /// Minecraft only sends a movement packet either after 20 ticks or if the
     /// player moved enough. This is that tick counter.
     pub position_remainder: u32,
+
     pub was_sprinting: bool,
+
+    /// Whether the player was sneaking last tick. You shouldn't modify this.
+    ///
+    /// If you want to check or change the player's sneak state from the ECS,
+    /// use the [`ShiftKeyDown`] component.
+    pub was_sneaking: bool,
+
     // Whether we're going to try to start sprinting this tick. Equivalent to
     // holding down ctrl for a tick.
     pub trying_to_sprint: bool,
@@ -251,10 +265,11 @@ fn send_sprinting_if_needed(
     mut query: Query<(Entity, &MinecraftEntityId, &Sprinting, &mut PhysicsState)>,
     mut send_packet_events: EventWriter<SendPacketEvent>,
 ) {
-    for (entity, minecraft_entity_id, sprinting, mut physics_state) in query.iter_mut() {
+    for (entity, &minecraft_entity_id, &Sprinting(sprinting), mut physics_state) in query.iter_mut()
+    {
         let was_sprinting = physics_state.was_sprinting;
-        if **sprinting != was_sprinting {
-            let sprinting_action = if **sprinting {
+        if sprinting != was_sprinting {
+            let sprinting_action = if sprinting {
                 azalea_protocol::packets::game::serverbound_player_command_packet::Action::StartSprinting
             } else {
                 azalea_protocol::packets::game::serverbound_player_command_packet::Action::StopSprinting
@@ -262,22 +277,122 @@ fn send_sprinting_if_needed(
             send_packet_events.send(SendPacketEvent {
                 entity,
                 packet: ServerboundPlayerCommandPacket {
-                    id: **minecraft_entity_id,
+                    id: *minecraft_entity_id,
                     action: sprinting_action,
                     data: 0,
                 }
                 .get(),
             });
-            physics_state.was_sprinting = **sprinting;
+            physics_state.was_sprinting = sprinting;
         }
     }
 }
 
+fn send_shift_key_down_if_needed(
+    mut query: Query<(Entity, &MinecraftEntityId, &ShiftKeyDown, &mut PhysicsState)>,
+    mut send_packet_events: EventWriter<SendPacketEvent>,
+) {
+    for (entity, &minecraft_entity_id, &ShiftKeyDown(sneaking), mut physics_state) in
+        query.iter_mut()
+    {
+        let was_sneaking = physics_state.was_sneaking;
+        if sneaking != was_sneaking {
+            let sneaking_action = if sneaking {
+                azalea_protocol::packets::game::serverbound_player_command_packet::Action::PressShiftKey
+            } else {
+                azalea_protocol::packets::game::serverbound_player_command_packet::Action::ReleaseShiftKey
+            };
+            send_packet_events.send(SendPacketEvent {
+                entity,
+                packet: ServerboundPlayerCommandPacket {
+                    id: *minecraft_entity_id,
+                    action: sneaking_action,
+                    data: 0,
+                }
+                .get(),
+            });
+            physics_state.was_sneaking = sneaking;
+        }
+    }
+}
+
+fn can_player_fit_within_blocks_and_entities_when(
+    _pose: azalea_entity::Pose,
+    _position: Vec3,
+    _instance: &azalea_world::Instance,
+) -> bool {
+    // TODO
+    true
+}
+
+pub fn update_sneaking(
+    mut query: Query<(
+        &PlayerAbilities,
+        &Swimming,
+        // TODO: isPassenger
+        &ShiftKeyDown,
+        &SleepingPos,
+        &Position,
+        &InstanceName,
+        &mut Sneaking,
+    )>,
+    instances: Res<InstanceContainer>,
+) {
+    for (
+        player_abilities,
+        &Swimming(swimming),
+        &ShiftKeyDown(shift_key_down),
+        &SleepingPos(sleeping_pos),
+        &Position(position),
+        instance_name,
+        mut sneaking,
+    ) in query.iter_mut()
+    {
+        let Some(instance) = instances.get(instance_name) else {
+            continue;
+        };
+        // this.crouching = !this.getAbilities().flying
+        // && !this.isSwimming()
+        // && !this.isPassenger()
+        // && this.canPlayerFitWithinBlocksAndEntitiesWhen(Pose.CROUCHING)
+        // && (this.isShiftKeyDown()
+        //       || !this.isSleeping() && !this.canPlayerFitWithinBlocksAndEntitiesWhen(Pose.STANDING));
+
+        let instance = instance.read();
+
+        **sneaking = !player_abilities.flying
+            && !swimming
+            // && !isPassenger
+            // && this.canPlayerFitWithinBlocksAndEntitiesWhen(Pose.CROUCHING)
+            && can_player_fit_within_blocks_and_entities_when(
+                azalea_entity::Pose::Crouching,
+                position,
+                &instance,
+            )
+             && (shift_key_down
+                || (
+                    sleeping_pos.is_none()
+                    && !can_player_fit_within_blocks_and_entities_when(azalea_entity::Pose::Standing, position, &instance)
+                )
+            );
+    }
+}
+
+fn is_moving_slowly(sneaking: bool, is_visually_crawling: bool) -> bool {
+    sneaking || is_visually_crawling
+}
+
 /// Update the impulse from self.move_direction. The multiplier is used for
 /// sneaking.
-pub(crate) fn tick_controls(mut query: Query<&mut PhysicsState>) {
-    for mut physics_state in query.iter_mut() {
-        let multiplier: Option<f32> = None;
+pub(crate) fn tick_controls(mut query: Query<(&mut PhysicsState, &Sneaking, &InventoryComponent)>) {
+    for (mut physics_state, &Sneaking(sneaking), inventory) in query.iter_mut() {
+        let multiplier: Option<f32> = if is_moving_slowly(sneaking, false) {
+            let sneaking_speed_bonus =
+                azalea_entity::enchantments::get_sneaking_speed_bonus(&inventory.inventory_menu);
+            Some(f32::clamp(0.3 + sneaking_speed_bonus, 0., 1.))
+        } else {
+            None
+        };
 
         let mut forward_impulse: f32 = 0.;
         let mut left_impulse: f32 = 0.;
@@ -396,6 +511,27 @@ impl Client {
             entity: self.entity,
             direction,
         });
+    }
+
+    /// Start or stop sneaking.
+    ///
+    /// ```rust,no_run
+    /// # use azalea_client::{Client, WalkDirection, SprintDirection};
+    /// # use std::time::Duration;
+    /// # async fn example(mut bot: Client) {
+    /// // toggle sneak
+    /// bot.sneak(!bot.sneaking());
+    /// # }
+    /// ```
+    pub fn sneak(&mut self, sneaking: bool) {
+        let mut ecs = self.ecs.lock();
+        let mut sneaking_component = self.query::<&mut ShiftKeyDown>(&mut ecs);
+        **sneaking_component = sneaking;
+    }
+
+    /// Returns whether the player is sneaking.
+    pub fn sneaking(&self) -> bool {
+        *self.component::<ShiftKeyDown>()
     }
 }
 

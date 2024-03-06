@@ -7,6 +7,7 @@ mod world_collisions;
 use std::ops::Add;
 
 use azalea_core::{aabb::AABB, direction::Axis, math::EPSILON, position::Vec3};
+use azalea_entity::{metadata::ShiftKeyDown, PlayerAbilities};
 use azalea_world::{Instance, MoveEntityError};
 use bevy_ecs::world::Mut;
 pub use blocks::BlockWithShape;
@@ -138,6 +139,7 @@ pub fn move_colliding(
     world: &Instance,
     position: &mut Mut<azalea_entity::Position>,
     physics: &mut azalea_entity::Physics,
+    abilities: &PlayerAbilities,
 ) -> Result<(), MoveEntityError> {
     // TODO: do all these
 
@@ -248,6 +250,24 @@ pub fn move_colliding(
     // }
 
     Ok(())
+}
+
+fn maybe_back_off_from_edge(
+    abilities: &PlayerAbilities,
+    movement: &Vec3,
+    mover_type: MoverType,
+    is_shift_key_held: &ShiftKeyDown
+) -> Vec3 {
+    // if (!this.abilities.flying
+    //     && movement.y <= 0.0
+    //     && (moverType == MoverType.SELF || moverType == MoverType.PLAYER)
+    //     && this.isStayingOnGroundSurface()
+    //     && this.isAboveGround()) {
+
+    let is_backing_off = !abilities.flying
+        && movement.y <= 0.
+        && matches!(mover_type, MoverType::Own | MoverType::Player)
+        
 }
 
 fn collide_bounding_box(

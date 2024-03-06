@@ -4,7 +4,7 @@ pub mod attributes;
 mod data;
 mod dimensions;
 mod effects;
-mod enchantments;
+pub mod enchantments;
 pub mod metadata;
 pub mod mining;
 mod plugin;
@@ -138,7 +138,7 @@ impl Debug for EntityUuid {
 /// You are free to change this; there's systems that update the indexes
 /// automatically.
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Deref, DerefMut)]
-pub struct Position(Vec3);
+pub struct Position(pub Vec3);
 impl Position {
     pub fn new(pos: Vec3) -> Self {
         Self(pos)
@@ -424,6 +424,26 @@ impl FluidOnEyes {
 
 #[derive(Component, Clone, Debug, PartialEq, Deref, DerefMut)]
 pub struct OnClimbable(bool);
+
+/// A component that indicates whether the player is currently sneaking.
+#[derive(Component, Clone, Deref, DerefMut, Default)]
+pub struct Sneaking(pub bool);
+
+/// A component that contains the abilities the player has, like flying
+/// or instantly breaking blocks. This is only present on local players.
+#[derive(Clone, Debug, Component, Default)]
+pub struct PlayerAbilities {
+    pub invulnerable: bool,
+    pub flying: bool,
+    pub can_fly: bool,
+    /// Whether the player can instantly break blocks and can duplicate blocks
+    /// in their inventory.
+    pub instant_break: bool,
+
+    pub flying_speed: f32,
+    /// Used for the fov
+    pub walking_speed: f32,
+}
 
 // #[cfg(test)]
 // mod tests {

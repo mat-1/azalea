@@ -142,9 +142,19 @@ pub enum Pose {
     Sleeping,
     Swimming,
     SpinAttack,
-    Sneaking,
+    Crouching,
     LongJumping,
     Dying,
+    Croaking,
+    UsingTongue,
+    Sitting,
+    Roaring,
+    Sniffing,
+    Emerging,
+    Digging,
+    Sliding,
+    Shooting,
+    Inhaling,
 }
 
 #[derive(Debug, Clone, McBuf)]

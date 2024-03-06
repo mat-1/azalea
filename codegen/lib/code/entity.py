@@ -347,7 +347,7 @@ impl From<EntityDataValue> for UpdateMetadataError {
         #             _marker: Allay,
         #             parent: AbstractCreatureBundle {
         #                 on_fire: OnFire(false),
-        #                 shift_key_down: ShiftKeyDown(false),
+        #                 sneaking: ShiftKeyDown(false),
         #             },
         #             sprinting: Sprinting(false),
         #             swimming: Swimming(false)
@@ -360,7 +360,7 @@ impl From<EntityDataValue> for UpdateMetadataError {
 
         def generate_fields(this_entity_id: str):
             # on_fire: OnFire(false),
-            # shift_key_down: ShiftKeyDown(false),
+            # sneaking: ShiftKeyDown(false),
 
             # _marker
             this_entity_struct_name = upper_first_letter(

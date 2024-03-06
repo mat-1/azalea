@@ -47,21 +47,6 @@ pub struct LocalGameMode {
     pub previous: Option<GameMode>,
 }
 
-/// A component that contains the abilities the player has, like flying
-/// or instantly breaking blocks. This is only present on local players.
-#[derive(Clone, Debug, Component, Default)]
-pub struct PlayerAbilities {
-    pub invulnerable: bool,
-    pub flying: bool,
-    pub can_fly: bool,
-    /// Whether the player can instantly break blocks and can duplicate blocks
-    /// in their inventory.
-    pub instant_break: bool,
-
-    pub flying_speed: f32,
-    /// Used for the fov
-    pub walking_speed: f32,
-}
 impl From<&ClientboundPlayerAbilitiesPacket> for PlayerAbilities {
     fn from(packet: &ClientboundPlayerAbilitiesPacket) -> Self {
         Self {

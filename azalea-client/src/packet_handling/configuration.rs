@@ -136,8 +136,9 @@ pub fn process_packet_events(ecs: &mut World) {
                         last_sent_direction: crate::movement::LastSentLookDirection::default(),
                         abilities: crate::local_player::PlayerAbilities::default(),
                         permission_level: crate::local_player::PermissionLevel::default(),
-                        hunger: Hunger::default(),
                         chunk_batch_info: crate::chunks::ChunkBatchInfo::default(),
+                        hunger: Hunger::default(),
+                        sneaking: azalea_entity::Sneaking::default(),
 
                         entity_id_index: EntityIdIndex::default(),
 
