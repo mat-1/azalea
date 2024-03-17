@@ -1,11 +1,8 @@
 //! Tell Mojang you're joining a multiplayer server.
-use once_cell::sync::Lazy;
 use reqwest::StatusCode;
 use serde::Deserialize;
-use serde_json::json;
 use thiserror::Error;
 use tracing::debug;
-use uuid::Uuid;
 
 use crate::game_profile::{GameProfile, SerializableGameProfile};
 
@@ -47,79 +44,6 @@ pub enum ServerSessionServerError {
 pub struct ForbiddenError {
     pub error: String,
     pub path: String,
-}
-
-static REQWEST_CLIENT: Lazy<reqwest::Client> = Lazy::new(reqwest::Client::new);
-
-/// Tell Mojang's servers that you are going to join a multiplayer server,
-/// which is required to join online-mode servers. The server ID is an empty
-/// string.
-pub async fn join(
-    access_token: &str,
-    public_key: &[u8],
-    private_key: &[u8],
-    uuid: &Uuid,
-    server_id: &str,
-) -> Result<(), ClientSessionServerError> {
-    let client = REQWEST_CLIENT.clone();
-
-    let server_hash = azalea_crypto::hex_digest(&azalea_crypto::digest_data(
-        server_id.as_bytes(),
-        public_key,
-        private_key,
-    ));
-
-    join_with_server_id_hash(&client, access_token, uuid, &server_hash).await
-}
-
-pub async fn join_with_server_id_hash(
-    client: &reqwest::Client,
-    access_token: &str,
-    uuid: &Uuid,
-    server_hash: &str,
-) -> Result<(), ClientSessionServerError> {
-    let mut encode_buffer = Uuid::encode_buffer();
-    let undashed_uuid = uuid.simple().encode_lower(&mut encode_buffer);
-
-    let data = json!({
-        "accessToken": access_token,
-        "selectedProfile": undashed_uuid,
-        "serverId": server_hash
-    });
-    let res = client
-        .post("https://sessionserver.mojang.com/session/minecraft/join")
-        .json(&data)
-        .send()
-        .await?;
-
-    match res.status() {
-        StatusCode::NO_CONTENT => Ok(()),
-        StatusCode::FORBIDDEN => {
-            let forbidden = res.json::<ForbiddenError>().await?;
-            match forbidden.error.as_str() {
-                "InsufficientPrivilegesException" => {
-                    Err(ClientSessionServerError::MultiplayerDisabled)
-                }
-                "UserBannedException" => Err(ClientSessionServerError::Banned),
-                "AuthenticationUnavailableException" => {
-                    Err(ClientSessionServerError::AuthServersUnreachable)
-                }
-                "InvalidCredentialsException" => Err(ClientSessionServerError::InvalidSession),
-                "ForbiddenOperationException" => Err(ClientSessionServerError::ForbiddenOperation),
-                _ => Err(ClientSessionServerError::Unknown(forbidden.error)),
-            }
-        }
-        StatusCode::TOO_MANY_REQUESTS => Err(ClientSessionServerError::RateLimited),
-        status_code => {
-            // log the headers
-            debug!("Error headers: {:#?}", res.headers());
-            let body = res.text().await?;
-            Err(ClientSessionServerError::UnexpectedResponse {
-                status_code: status_code.as_u16(),
-                body,
-            })
-        }
-    }
 }
 
 /// Ask Mojang's servers if the player joining is authenticated.

@@ -15,7 +15,10 @@ pub mod pathfinder;
 pub mod prelude;
 pub mod swarm;
 
+use std::sync::Arc;
+
 use app::Plugins;
+use auth::account::Account;
 pub use azalea_auth as auth;
 pub use azalea_block as blocks;
 pub use azalea_brigadier as brigadier;
@@ -180,10 +183,10 @@ where
     /// [`ServerAddress`]: azalea_protocol::ServerAddress
     pub async fn start(
         mut self,
-        account: Account,
+        account: impl Account,
         address: impl TryInto<ServerAddress>,
     ) -> Result<!, StartError> {
-        self.swarm.accounts = vec![account];
+        self.swarm.accounts = vec![BoxedAccount(Arc::new(account))];
         if self.swarm.states.is_empty() {
             self.swarm.states = vec![S::default()];
         }

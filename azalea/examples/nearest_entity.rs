@@ -1,7 +1,7 @@
 use azalea::nearest_entity::EntityFinder;
 use azalea::ClientBuilder;
 use azalea::{Bot, LookAtEvent};
-use azalea_client::Account;
+use azalea_auth::OfflineAccount;
 use azalea_core::tick::GameTick;
 use azalea_entity::metadata::{ItemItem, Player};
 use azalea_entity::{EyeHeight, LocalEntity, Position};
@@ -14,7 +14,7 @@ use bevy_ecs::{
 
 #[tokio::main]
 async fn main() {
-    let account = Account::offline("bot");
+    let account = OfflineAccount::new("bot");
 
     ClientBuilder::new()
         .add_plugins(LookAtStuffPlugin)

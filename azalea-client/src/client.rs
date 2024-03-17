@@ -21,10 +21,13 @@ use crate::{
     raw_connection::RawConnection,
     respawn::RespawnPlugin,
     task_pool::TaskPoolPlugin,
-    Account, PlayerInfo,
+    PlayerInfo,
 };
 
-use azalea_auth::{game_profile::GameProfile, sessionserver::ClientSessionServerError};
+use async_trait::async_trait;
+use azalea_auth::{
+    account::Account, certs::{Certificates, FetchCertificatesError}, game_profile::GameProfile, sessionserver::ClientSessionServerError
+};
 use azalea_chat::FormattedText;
 use azalea_core::{position::Vec3, tick::GameTick};
 use azalea_entity::{
@@ -105,6 +108,7 @@ pub struct Client {
     ///
     /// This as also available from the ECS as [`GameProfileComponent`].
     pub profile: GameProfile,
+
     /// The entity for this client in the ECS.
     pub entity: Entity,
 
@@ -133,10 +137,37 @@ pub enum JoinError {
     #[error("The given address could not be parsed into a ServerAddress")]
     InvalidAddress,
     #[error("Couldn't refresh access token: {0}")]
-    Auth(#[from] azalea_auth::AuthError),
+    Auth(#[from] azalea_auth::MicrosoftAuthError),
     #[error("Disconnected: {reason}")]
     Disconnect { reason: FormattedText },
 }
+
+#[derive(Clone, Debug, Component)]
+pub struct BoxedAccount(pub Arc<dyn Account>);
+
+#[async_trait]
+impl Account for BoxedAccount {
+    async fn join_with_server_id_hash(
+        &self,
+        uuid: Uuid,
+        server_hash: String,
+    ) -> Result<(), ClientSessionServerError> {
+        self.0.join_with_server_id_hash(uuid, server_hash).await
+    }
+
+    async fn fetch_certificates(&self) -> Result<Option<Certificates>, FetchCertificatesError> {
+        self.0.fetch_certificates().await
+    }
+
+    fn get_username(&self) -> String {
+        self.0.get_username()
+    }
+
+    fn get_uuid(&self) -> Uuid {
+        self.0.get_uuid()
+    }
+}
+
 
 impl Client {
     /// Create a new client from the given [`GameProfile`], ECS Entity, ECS
@@ -181,7 +212,7 @@ impl Client {
     /// }
     /// ```
     pub async fn join(
-        account: &Account,
+        account: impl Account,
         address: impl TryInto<ServerAddress>,
     ) -> Result<(Self, mpsc::UnboundedReceiver<Event>), JoinError> {
         let address: ServerAddress = address.try_into().map_err(|_| JoinError::InvalidAddress)?;
@@ -197,7 +228,7 @@ impl Client {
 
         Self::start_client(
             ecs_lock,
-            account,
+            BoxedAccount(Arc::new(account)),
             &address,
             &resolved_address,
             run_schedule_sender,
@@ -209,7 +240,7 @@ impl Client {
     /// [`start_ecs_runner`]. You'd usually want to use [`Self::join`] instead.
     pub async fn start_client(
         ecs_lock: Arc<Mutex<World>>,
-        account: &Account,
+        account: BoxedAccount,
         address: &ServerAddress,
         resolved_address: &SocketAddr,
         run_schedule_sender: mpsc::UnboundedSender<()>,
@@ -220,8 +251,8 @@ impl Client {
             let mut ecs = ecs_lock.lock();
 
             let entity_uuid_index = ecs.resource::<EntityUuidIndex>();
-            let uuid = account.uuid_or_offline();
-            let entity = if let Some(entity) = entity_uuid_index.get(&account.uuid_or_offline()) {
+            let uuid = account.0.get_uuid();
+            let entity = if let Some(entity) = entity_uuid_index.get(&account.0.get_uuid()) {
                 debug!("Reusing entity {entity:?} for client");
                 entity
             } else {
@@ -234,7 +265,7 @@ impl Client {
             };
 
             // add the Account to the entity now so plugins can access it earlier
-            ecs.entity_mut(entity).insert(account.to_owned());
+            ecs.entity_mut(entity).insert(account.clone());
 
             entity
         };
@@ -291,7 +322,7 @@ impl Client {
         ecs_lock: Arc<Mutex<World>>,
         entity: Entity,
         mut conn: Connection<ClientboundHandshakePacket, ServerboundHandshakePacket>,
-        account: &Account,
+        account: BoxedAccount,
         address: &ServerAddress,
     ) -> Result<
         (
@@ -324,10 +355,8 @@ impl Client {
         // login
         conn.write(
             ServerboundHelloPacket {
-                name: account.username.clone(),
-                // TODO: pretty sure this should generate an offline-mode uuid instead of just
-                // Uuid::default()
-                profile_id: account.uuid.unwrap_or_default(),
+                name: account.0.get_username().clone(),
+                profile_id: account.0.get_uuid(),
             }
             .get(),
         )
@@ -353,41 +382,31 @@ impl Client {
                     debug!("Got encryption request");
                     let e = azalea_crypto::encrypt(&p.public_key, &p.nonce).unwrap();
 
-                    if let Some(access_token) = &account.access_token {
-                        // keep track of the number of times we tried
-                        // authenticating so we can give up after too many
-                        let mut attempts: usize = 1;
+                    // keep track of the number of times we tried
+                    // authenticating so we can give up after too many
+                    let mut attempts: usize = 1;
 
-                        while let Err(e) = {
-                            let access_token = access_token.lock().clone();
-                            conn.authenticate(
-                                &access_token,
-                                &account
-                                    .uuid
-                                    .expect("Uuid must be present if access token is present."),
-                                e.secret_key,
-                                &p,
-                            )
-                            .await
-                        } {
-                            if attempts >= 2 {
-                                // if this is the second attempt and we failed
-                                // both times, give up
-                                return Err(e.into());
-                            }
-                            if matches!(
-                                e,
-                                ClientSessionServerError::InvalidSession
-                                    | ClientSessionServerError::ForbiddenOperation
-                            ) {
-                                // uh oh, we got an invalid session and have
-                                // to reauthenticate now
-                                account.refresh().await?;
-                            } else {
-                                return Err(e.into());
-                            }
-                            attempts += 1;
+                    while let Err(e) =
+                        { conn.authenticate(account.0.clone(), e.secret_key, &p).await }
+                    {
+                        if attempts >= 2 {
+                            // if this is the second attempt and we failed
+                            // both times, give up
+                            return Err(e.into());
                         }
+                        if matches!(
+                            e,
+                            ClientSessionServerError::InvalidSession
+                                | ClientSessionServerError::ForbiddenOperation
+                        ) {
+                            // uh oh, we got an invalid session and have
+                            // to reauthenticate now
+                            // account.refresh().await?; FIXME: Make this
+                            // work with microsoft accounts or smth
+                        } else {
+                            return Err(e.into());
+                        }
+                        attempts += 1;
                     }
 
                     conn.write(

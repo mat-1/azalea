@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    let account = Account::offline("bot");
+    let account = OfflineAccount::new("bot");
     // or let bot = Account::microsoft("email").await.unwrap();
 
     ClientBuilder::new()

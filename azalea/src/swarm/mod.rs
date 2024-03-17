@@ -4,9 +4,8 @@ mod chat;
 mod events;
 pub mod prelude;
 
-use azalea_client::{
-    chat::ChatPacket, start_ecs_runner, Account, Client, DefaultPlugins, Event, JoinError,
-};
+use azalea_auth::account::Account;
+use azalea_client::{chat::ChatPacket, start_ecs_runner, BoxedAccount, Client, DefaultPlugins, Event, JoinError};
 use azalea_protocol::{resolver, ServerAddress};
 use azalea_world::InstanceContainer;
 use bevy_app::{App, PluginGroup, PluginGroupBuilder, Plugins};
@@ -52,7 +51,7 @@ where
 {
     pub(crate) app: App,
     /// The accounts that are going to join the server.
-    pub(crate) accounts: Vec<Account>,
+    pub(crate) accounts: Vec<BoxedAccount>,
     /// The individual bot states. This must be the same length as `accounts`,
     /// since each bot gets one state.
     pub(crate) states: Vec<S>,
@@ -233,7 +232,7 @@ where
     /// By default every account will join at the same time, you can add a delay
     /// with [`Self::join_delay`].
     #[must_use]
-    pub fn add_accounts(mut self, accounts: Vec<Account>) -> Self
+    pub fn add_accounts(mut self, accounts: Vec<impl Account>) -> Self
     where
         S: Default,
     {
@@ -248,7 +247,7 @@ where
     /// This will make the state for this client be the default, use
     /// [`Self::add_account_with_state`] to avoid that.
     #[must_use]
-    pub fn add_account(self, account: Account) -> Self
+    pub fn add_account(self, account: impl Account) -> Self
     where
         S: Default,
     {
@@ -257,8 +256,8 @@ where
     /// Add an account with a custom initial state. Use just
     /// [`Self::add_account`] to use the Default implementation for the state.
     #[must_use]
-    pub fn add_account_with_state(mut self, account: Account, state: S) -> Self {
-        self.accounts.push(account);
+    pub fn add_account_with_state(mut self, account: impl Account, state: S) -> Self {
+        self.accounts.push(BoxedAccount(Arc::new(account)));
         self.states.push(state);
         self
     }
@@ -359,7 +358,7 @@ where
         tokio::spawn(async move {
             if let Some(join_delay) = join_delay {
                 // if there's a join delay, then join one by one
-                for (account, state) in accounts.iter().zip(states) {
+                for (account, state) in accounts.iter().cloned().zip(states) {
                     swarm_clone.add_and_retry_forever(account, state).await;
                     tokio::time::sleep(join_delay).await;
                 }
@@ -369,6 +368,7 @@ where
                 join_all(
                     accounts
                         .iter()
+                        .cloned()
                         .zip(states)
                         .map(move |(account, state)| async {
                             swarm_borrow
@@ -443,7 +443,7 @@ pub enum SwarmEvent {
     ///
     /// You can implement an auto-reconnect by calling [`Swarm::add`]
     /// with the account from this event.
-    Disconnect(Box<Account>),
+    Disconnect(BoxedAccount),
     /// At least one bot received a chat message.
     Chat(ChatPacket),
 }
@@ -522,7 +522,7 @@ impl Swarm {
     /// Returns an `Err` if the bot could not do a handshake successfully.
     pub async fn add<S: Component + Clone>(
         &mut self,
-        account: &Account,
+        account: BoxedAccount,
         state: S,
     ) -> Result<Client, JoinError> {
         let address = self.address.read().clone();
@@ -558,11 +558,9 @@ impl Swarm {
             }
             cloned_bots.lock().remove(&bot.entity);
             let account = cloned_bot
-                .get_component::<Account>()
+                .get_component::<BoxedAccount>()
                 .expect("bot is missing required Account component");
-            swarm_tx
-                .send(SwarmEvent::Disconnect(Box::new(account)))
-                .unwrap();
+            swarm_tx.send(SwarmEvent::Disconnect(account)).unwrap();
         });
 
         Ok(bot)
@@ -575,18 +573,18 @@ impl Swarm {
     /// seconds and doubling up to 15 seconds.
     pub async fn add_and_retry_forever<S: Component + Clone>(
         &mut self,
-        account: &Account,
+        account: BoxedAccount,
         state: S,
     ) -> Client {
         let mut disconnects = 0;
         loop {
-            match self.add(account, state.clone()).await {
+            match self.add(account.clone(), state.clone()).await {
                 Ok(bot) => return bot,
                 Err(e) => {
                     disconnects += 1;
                     let delay = (Duration::from_secs(5) * 2u32.pow(disconnects.min(16)))
                         .min(Duration::from_secs(15));
-                    let username = account.username.clone();
+                    let username = account.0.get_username();
                     error!("Error joining as {username}: {e}. Waiting {delay:?} and trying again.");
                     tokio::time::sleep(delay).await;
                 }

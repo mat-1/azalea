@@ -1,7 +1,16 @@
 //! Handle Minecraft (Xbox) authentication.
 
-use crate::cache::{self, CachedAccount, ExpiringValue};
+use crate::{
+    account::Account,
+    cache::{self, CachedAccount, ExpiringValue},
+    certs::{Certificates, CertificatesResponse, FetchCertificatesError},
+    sessionserver::{ClientSessionServerError, ForbiddenError},
+};
+use async_trait::async_trait;
+use base64::Engine;
 use chrono::{DateTime, Utc};
+use reqwest::StatusCode;
+use rsa::{pkcs8::DecodePrivateKey, RsaPrivateKey};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{
@@ -10,10 +19,11 @@ use std::{
     time::{Instant, SystemTime, UNIX_EPOCH},
 };
 use thiserror::Error;
+use tracing::debug;
 use uuid::Uuid;
 
 #[derive(Default)]
-pub struct AuthOpts {
+pub struct MicrosoftAuthOpts {
     /// Whether we should check if the user actually owns the game. This will
     /// fail if the user has Xbox Game Pass! Note that this isn't really
     /// necessary, since getting the user profile will check this anyways.
@@ -26,8 +36,15 @@ pub struct AuthOpts {
     pub cache_file: Option<PathBuf>,
 }
 
+#[derive(Clone, Debug)]
+pub struct MicrosoftAccount {
+    pub client: reqwest::Client,
+    pub access_token: String,
+    pub profile: ProfileResponse,
+}
+
 #[derive(Debug, Error)]
-pub enum AuthError {
+pub enum MicrosoftAuthError {
     #[error(
         "The Minecraft API is indicating that you don't own the game. \
         If you're using Xbox Game Pass, set `check_ownership` to false in the auth options."
@@ -49,142 +66,219 @@ pub enum AuthError {
     GetXboxLiveAuth(#[from] XboxLiveAuthError),
 }
 
-/// Authenticate with Microsoft. If the data isn't cached,
-/// they'll be asked to go to log into Microsoft in a web page.
-///
-/// The email is technically only used as a cache key, so it *could* be
-/// anything. You should just have it be the actual email so it's not confusing
-/// though, and in case the Microsoft API does start providing the real email.
-///
-/// If you want to use your own code to cache or show the auth code to the user
-/// in a different way, use [`get_ms_link_code`], [`get_ms_auth_token`],
-/// [`get_minecraft_token`] and [`get_profile`] instead.
-pub async fn auth(email: &str, opts: AuthOpts) -> Result<AuthResult, AuthError> {
-    let cached_account = if let Some(cache_file) = &opts.cache_file {
-        cache::get_account_in_cache(cache_file, email).await
-    } else {
-        None
-    };
-
-    if cached_account.is_some() && !cached_account.as_ref().unwrap().mca.is_expired() {
-        let account = cached_account.as_ref().unwrap();
-        // the minecraft auth data is cached and not expired, so we can just
-        // use that instead of doing auth all over again :)
-
-        Ok(AuthResult {
-            access_token: account.mca.data.access_token.clone(),
-            profile: account.profile.clone(),
-        })
-    } else {
-        let client = reqwest::Client::new();
-        let mut msa = if let Some(account) = cached_account {
-            account.msa
+impl MicrosoftAccount {
+    pub async fn new(email: &str, opts: MicrosoftAuthOpts) -> Result<Self, MicrosoftAuthError> {
+        let cached_account = if let Some(cache_file) = &opts.cache_file {
+            cache::get_account_in_cache(cache_file, email).await
         } else {
-            interactive_get_ms_auth_token(&client, email).await?
+            None
         };
-        if msa.is_expired() {
-            tracing::trace!("refreshing Microsoft auth token");
-            match refresh_ms_auth_token(&client, &msa.data.refresh_token).await {
-                Ok(new_msa) => msa = new_msa,
-                Err(e) => {
-                    // can't refresh, ask the user to auth again
-                    tracing::error!("Error refreshing Microsoft auth token: {}", e);
-                    msa = interactive_get_ms_auth_token(&client, email).await?;
+
+        if cached_account.is_some() && !cached_account.as_ref().unwrap().mca.is_expired() {
+            let account = cached_account.as_ref().unwrap();
+            // the minecraft auth data is cached and not expired, so we can just
+            // use that instead of doing auth all over again :)
+
+            Ok(Self {
+                client: reqwest::Client::new(),
+                access_token: account.mca.data.access_token.clone(),
+                profile: account.profile.clone(),
+            })
+        } else {
+            let client = reqwest::Client::new();
+            let mut msa = if let Some(account) = cached_account {
+                account.msa
+            } else {
+                interactive_get_ms_auth_token(&client, email).await?
+            };
+            if msa.is_expired() {
+                tracing::trace!("Refreshing Microsoft auth token");
+                match refresh_ms_auth_token(&client, &msa.data.refresh_token).await {
+                    Ok(new_msa) => msa = new_msa,
+                    Err(e) => {
+                        // can't refresh, ask the user to auth again
+                        tracing::error!("Error refreshing Microsoft auth token: {}", e);
+                        msa = interactive_get_ms_auth_token(&client, email).await?;
+                    }
                 }
             }
-        }
 
-        let msa_token = &msa.data.access_token;
-        tracing::trace!("Got access token: {msa_token}");
+            let msa_token = &msa.data.access_token;
+            tracing::trace!("Got access token: {msa_token}");
 
-        let res = get_minecraft_token(&client, msa_token).await?;
+            let xbl = auth_with_xbox_live(&client, msa_token).await?;
 
-        if opts.check_ownership {
-            let has_game = check_ownership(&client, &res.minecraft_access_token).await?;
-            if !has_game {
-                return Err(AuthError::DoesNotOwnGame);
-            }
-        }
-
-        let profile: ProfileResponse = get_profile(&client, &res.minecraft_access_token).await?;
-
-        if let Some(cache_file) = opts.cache_file {
-            if let Err(e) = cache::set_account_in_cache(
-                &cache_file,
-                email,
-                CachedAccount {
-                    email: email.to_string(),
-                    mca: res.mca,
-                    msa,
-                    xbl: res.xbl,
-                    profile: profile.clone(),
-                },
+            let xsts_token = obtain_xsts_for_minecraft(
+                &client,
+                &xbl.get()
+                    .expect("Xbox Live auth token shouldn't have expired yet")
+                    .token,
             )
-            .await
-            {
-                tracing::error!("{}", e);
-            }
-        }
+            .await?;
 
-        Ok(AuthResult {
-            access_token: res.minecraft_access_token,
-            profile,
-        })
+            let mca = auth_with_minecraft(&client, &xbl.data.user_hash, &xsts_token).await?;
+
+            let minecraft_access_token: String = mca
+                .get()
+                .expect("Minecraft auth shouldn't have expired yet")
+                .access_token
+                .to_string();
+
+            if opts.check_ownership {
+                let has_game = check_ownership(&client, &minecraft_access_token).await?;
+                if !has_game {
+                    return Err(MicrosoftAuthError::DoesNotOwnGame);
+                }
+            }
+
+            let profile: ProfileResponse = get_profile(&client, &minecraft_access_token).await?;
+
+            if let Some(cache_file) = opts.cache_file {
+                if let Err(e) = cache::set_account_in_cache(
+                    &cache_file,
+                    email,
+                    CachedAccount {
+                        email: email.to_string(),
+                        mca,
+                        msa,
+                        xbl,
+                        profile: profile.clone(),
+                    },
+                )
+                .await
+                {
+                    tracing::error!("{}", e);
+                }
+            }
+
+            Ok(Self {
+                client,
+                access_token: minecraft_access_token,
+                profile,
+            })
+        }
     }
 }
 
-/// Authenticate with Minecraft when we already have a Microsoft auth token.
-///
-/// Usually you don't need this since [`auth`] will call it for you, but it's
-/// useful if you want more control over what it does.
-///
-/// If you don't have a Microsoft auth token, you can get it from
-/// [`get_ms_link_code`] and then [`get_ms_auth_token`].
-///
-/// If you got the MSA token from your own app (as opposed to the default
-/// Nintendo Switch one), you may have to prepend "d=" to the token.
-pub async fn get_minecraft_token(
-    client: &reqwest::Client,
-    msa: &str,
-) -> Result<MinecraftTokenResponse, AuthError> {
-    let xbl_auth = auth_with_xbox_live(client, msa).await?;
+#[async_trait]
+impl Account for MicrosoftAccount {
+    async fn join_with_server_id_hash(
+        &self,
+        uuid: Uuid,
+        server_hash: String,
+    ) -> Result<(), ClientSessionServerError> {
+        let mut encode_buffer = Uuid::encode_buffer();
+        let undashed_uuid = uuid.simple().encode_lower(&mut encode_buffer);
 
-    let xsts_token = obtain_xsts_for_minecraft(
-        client,
-        &xbl_auth
-            .get()
-            .expect("Xbox Live auth token shouldn't have expired yet")
-            .token,
-    )
-    .await?;
+        let data = json!({
+            "accessToken": self.access_token,
+            "selectedProfile": undashed_uuid,
+            "serverId": server_hash
+        });
+        let res = self
+            .client
+            .post("https://sessionserver.mojang.com/session/minecraft/join")
+            .json(&data)
+            .send()
+            .await?;
 
-    // Minecraft auth
-    let mca = auth_with_minecraft(client, &xbl_auth.data.user_hash, &xsts_token).await?;
+        match res.status() {
+            StatusCode::NO_CONTENT => Ok(()),
+            StatusCode::FORBIDDEN => {
+                let forbidden = res.json::<ForbiddenError>().await?;
+                match forbidden.error.as_str() {
+                    "InsufficientPrivilegesException" => {
+                        Err(ClientSessionServerError::MultiplayerDisabled)
+                    }
+                    "UserBannedException" => Err(ClientSessionServerError::Banned),
+                    "AuthenticationUnavailableException" => {
+                        Err(ClientSessionServerError::AuthServersUnreachable)
+                    }
+                    "InvalidCredentialsException" => Err(ClientSessionServerError::InvalidSession),
+                    "ForbiddenOperationException" => {
+                        Err(ClientSessionServerError::ForbiddenOperation)
+                    }
+                    _ => Err(ClientSessionServerError::Unknown(forbidden.error)),
+                }
+            }
+            StatusCode::TOO_MANY_REQUESTS => Err(ClientSessionServerError::RateLimited),
+            status_code => {
+                // log the headers
+                debug!("Error headers: {:#?}", res.headers());
+                let body = res.text().await?;
+                Err(ClientSessionServerError::UnexpectedResponse {
+                    status_code: status_code.as_u16(),
+                    body,
+                })
+            }
+        }
+    }
 
-    let minecraft_access_token: String = mca
-        .get()
-        .expect("Minecraft auth shouldn't have expired yet")
-        .access_token
-        .to_string();
+    fn get_username(&self) -> String {
+        self.profile.name.clone()
+    }
 
-    Ok(MinecraftTokenResponse {
-        mca,
-        xbl: xbl_auth,
-        minecraft_access_token,
-    })
-}
+    fn get_uuid(&self) -> Uuid {
+        self.profile.id
+    }
 
-#[derive(Debug)]
-pub struct MinecraftTokenResponse {
-    pub mca: ExpiringValue<MinecraftAuthResponse>,
-    pub xbl: ExpiringValue<XboxLiveAuth>,
-    pub minecraft_access_token: String,
-}
+    async fn fetch_certificates(&self) -> Result<Option<Certificates>, FetchCertificatesError> {
+        let res = self
+            .client
+            .post("https://api.minecraftservices.com/player/certificates")
+            .header("Authorization", format!("Bearer {}", self.access_token))
+            .send()
+            .await?
+            .json::<CertificatesResponse>()
+            .await?;
+        tracing::trace!("{:?}", res);
 
-#[derive(Debug)]
-pub struct AuthResult {
-    pub access_token: String,
-    pub profile: ProfileResponse,
+        // using RsaPrivateKey::from_pkcs8_pem gives an error with decoding base64 so we
+        // just decode it ourselves
+
+        // remove the first and last lines of the private key
+        let private_key_pem_base64 = res
+            .key_pair
+            .private_key
+            .lines()
+            .skip(1)
+            .take_while(|line| !line.starts_with('-'))
+            .collect::<String>();
+        let private_key_der = base64::engine::general_purpose::STANDARD
+            .decode(private_key_pem_base64)
+            .unwrap();
+
+        let public_key_pem_base64 = res
+            .key_pair
+            .public_key
+            .lines()
+            .skip(1)
+            .take_while(|line| !line.starts_with('-'))
+            .collect::<String>();
+        let public_key_der = base64::engine::general_purpose::STANDARD
+            .decode(public_key_pem_base64)
+            .unwrap();
+
+        // the private key also contains the public key so it's basically a keypair
+        let private_key = RsaPrivateKey::from_pkcs8_der(&private_key_der).unwrap();
+
+        let certificates = Certificates {
+            private_key,
+            public_key_der,
+
+            signature_v1: base64::engine::general_purpose::STANDARD
+                .decode(&res.public_key_signature)
+                .unwrap(),
+            signature_v2: base64::engine::general_purpose::STANDARD
+                .decode(&res.public_key_signature_v2)
+                .unwrap(),
+
+            expires_at: res.expires_at,
+            refresh_after: res.refreshed_after,
+        };
+
+        Ok(Some(certificates))
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -413,7 +507,7 @@ pub enum XboxLiveAuthError {
     InvalidExpiryDate(String),
 }
 
-async fn auth_with_xbox_live(
+pub async fn auth_with_xbox_live(
     client: &reqwest::Client,
     access_token: &str,
 ) -> Result<ExpiringValue<XboxLiveAuth>, XboxLiveAuthError> {
@@ -464,7 +558,7 @@ pub enum MinecraftXstsAuthError {
     Http(#[from] reqwest::Error),
 }
 
-async fn obtain_xsts_for_minecraft(
+pub async fn obtain_xsts_for_minecraft(
     client: &reqwest::Client,
     xbl_auth_token: &str,
 ) -> Result<String, MinecraftXstsAuthError> {
@@ -494,7 +588,7 @@ pub enum MinecraftAuthError {
     Http(#[from] reqwest::Error),
 }
 
-async fn auth_with_minecraft(
+pub async fn auth_with_minecraft(
     client: &reqwest::Client,
     user_hash: &str,
     xsts_token: &str,

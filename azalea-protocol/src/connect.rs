@@ -11,6 +11,7 @@ use crate::packets::status::{ClientboundStatusPacket, ServerboundStatusPacket};
 use crate::packets::ProtocolPacket;
 use crate::read::{deserialize_packet, read_raw_packet, try_read_raw_packet, ReadPacketError};
 use crate::write::{serialize_packet, write_raw_packet};
+use azalea_auth::account::Account;
 use azalea_auth::game_profile::GameProfile;
 use azalea_auth::sessionserver::{ClientSessionServerError, ServerSessionServerError};
 use azalea_crypto::{Aes128CfbDec, Aes128CfbEnc};
@@ -19,12 +20,12 @@ use std::fmt::Debug;
 use std::io::Cursor;
 use std::marker::PhantomData;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use thiserror::Error;
 use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf, ReuniteError};
 use tokio::net::TcpStream;
 use tracing::{error, info};
-use uuid::Uuid;
 
 pub struct RawReadConnection {
     pub read_stream: OwnedReadHalf,
@@ -390,19 +391,13 @@ impl Connection<ClientboundLoginPacket, ServerboundLoginPacket> {
     /// ```
     pub async fn authenticate(
         &self,
-        access_token: &str,
-        uuid: &Uuid,
+        account: Arc<dyn Account>,
         private_key: [u8; 16],
         packet: &ClientboundHelloPacket,
     ) -> Result<(), ClientSessionServerError> {
-        azalea_auth::sessionserver::join(
-            access_token,
-            &packet.public_key,
-            &private_key,
-            uuid,
-            &packet.server_id,
-        )
-        .await
+        account
+            .join(&packet.public_key, &private_key, &packet.server_id)
+            .await
     }
 }
 

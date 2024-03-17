@@ -7,6 +7,8 @@ use thiserror::Error;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+use crate::{AccessTokenResponse, MinecraftAuthResponse, ProfileResponse, XboxLiveAuth};
+
 #[derive(Debug, Error)]
 pub enum CacheError {
     #[error("Failed to read cache file: {0}")]
@@ -23,13 +25,13 @@ pub enum CacheError {
 pub struct CachedAccount {
     pub email: String,
     /// Microsoft auth
-    pub msa: ExpiringValue<crate::auth::AccessTokenResponse>,
+    pub msa: ExpiringValue<AccessTokenResponse>,
     /// Xbox Live auth
-    pub xbl: ExpiringValue<crate::auth::XboxLiveAuth>,
+    pub xbl: ExpiringValue<XboxLiveAuth>,
     /// Minecraft auth
-    pub mca: ExpiringValue<crate::auth::MinecraftAuthResponse>,
+    pub mca: ExpiringValue<MinecraftAuthResponse>,
     /// The user's Minecraft profile (i.e. username, UUID, skin)
-    pub profile: crate::auth::ProfileResponse,
+    pub profile: ProfileResponse,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

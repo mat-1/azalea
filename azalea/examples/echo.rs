@@ -4,7 +4,7 @@ use azalea::prelude::*;
 
 #[tokio::main]
 async fn main() {
-    let account = Account::offline("bot");
+    let account = OfflineAccount::new("bot");
     // or let account = Account::microsoft("email").await.unwrap();
 
     ClientBuilder::new()

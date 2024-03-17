@@ -21,6 +21,7 @@ use azalea::brigadier::command_dispatcher::CommandDispatcher;
 use azalea::ecs::prelude::*;
 use azalea::prelude::*;
 use azalea::swarm::prelude::*;
+use azalea_auth::account::Account;
 use commands::{register_commands, CommandSource};
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -61,7 +62,7 @@ async fn main() {
         });
     }
 
-    let account = Account::offline(USERNAME);
+    let account = OfflineAccount::new(USERNAME);
 
     let mut commands = CommandDispatcher::new();
     register_commands(&mut commands);
@@ -182,9 +183,9 @@ async fn swarm_handle(
 ) -> anyhow::Result<()> {
     match &event {
         SwarmEvent::Disconnect(account) => {
-            println!("bot got kicked! {}", account.username);
+            println!("bot got kicked! {}", account.get_username());
             tokio::time::sleep(Duration::from_secs(5)).await;
-            swarm.add_and_retry_forever(account, State::default()).await;
+            swarm.add_and_retry_forever(account.clone(), State::default()).await;
         }
         SwarmEvent::Chat(chat) => {
             if chat.message().to_string() == "The particle was not visible for anybody" {

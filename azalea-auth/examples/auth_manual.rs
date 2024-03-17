@@ -27,6 +27,24 @@ async fn auth() -> Result<ProfileResponse, Box<dyn Error>> {
         res.verification_uri, res.user_code
     );
     let msa = azalea_auth::get_ms_auth_token(&client, res).await?;
-    let auth_result = azalea_auth::get_minecraft_token(&client, &msa.data.access_token).await?;
-    Ok(azalea_auth::get_profile(&client, &auth_result.minecraft_access_token).await?)
+    let xbl_auth = azalea_auth::auth_with_xbox_live(&client, &msa.data.access_token).await?;
+
+    let xsts_token = azalea_auth::obtain_xsts_for_minecraft(
+        &client,
+        &xbl_auth
+            .get()
+            .expect("Xbox Live auth token shouldn't have expired yet")
+            .token,
+    )
+    .await?;
+
+    // Minecraft auth
+    let mca = azalea_auth::auth_with_minecraft(&client, &xbl_auth.data.user_hash, &xsts_token).await?;
+
+    let minecraft_access_token: String = mca
+        .get()
+        .expect("Minecraft auth shouldn't have expired yet")
+        .access_token
+        .to_string();
+    Ok(azalea_auth::get_profile(&client, &minecraft_access_token).await?)
 }
