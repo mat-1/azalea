@@ -38,6 +38,7 @@ pub use azalea_world as world;
 pub use bot::*;
 use ecs::component::Component;
 use futures::{future::BoxFuture, Future};
+use protocol::connect::Proxy;
 use protocol::{resolver::ResolverError, ServerAddress};
 use swarm::SwarmBuilder;
 use thiserror::Error;
@@ -185,30 +186,26 @@ where
         account: Account,
         address: impl TryInto<ServerAddress>,
     ) -> Result<!, StartError> {
-        self.swarm.accounts = vec![account];
+        self.swarm.accounts = vec![(account, JoinOpts::default())];
         if self.swarm.states.is_empty() {
             self.swarm.states = vec![S::default()];
         }
         self.swarm.start(address).await
     }
 
-    /// Do the same as [`Self::start`], but allow passing in a custom resolved
-    /// address. This is useful if the address you're connecting to doesn't
-    /// resolve to anything, like if the server uses the address field to pass
-    /// custom data (like Bungeecord or Forge).
-    pub async fn start_with_custom_resolved_address(
+    /// Do the same as [`Self::start`], but allow passing in custom join
+    /// options.
+    pub async fn start_with_opts(
         mut self,
         account: Account,
         address: impl TryInto<ServerAddress>,
-        resolved_address: SocketAddr,
+        opts: JoinOpts,
     ) -> Result<!, StartError> {
-        self.swarm.accounts = vec![account];
+        self.swarm.accounts = vec![(account, opts.clone())];
         if self.swarm.states.is_empty() {
             self.swarm.states = vec![S::default()];
         }
-        self.swarm
-            .start_with_custom_resolved_address(address, resolved_address)
-            .await
+        self.swarm.start_with_default_opts(address, opts).await
     }
 }
 impl Default for ClientBuilder<NoState> {
@@ -224,3 +221,55 @@ impl Default for ClientBuilder<NoState> {
 /// [`SwarmBuilder`]: swarm::SwarmBuilder
 #[derive(Component, Clone, Default)]
 pub struct NoState;
+
+/// Optional settings when adding an account to a swarm or client.
+#[derive(Clone, Debug, Default)]
+#[non_exhaustive]
+pub struct JoinOpts {
+    /// The Socks5 proxy that this bot will use.
+    pub proxy: Option<Proxy>,
+    /// Override the server address that this specific bot will send in the
+    /// handshake packet.
+    pub custom_address: Option<ServerAddress>,
+    /// Override the socket address that this specific bot will use to connect
+    /// to the server.
+    pub custom_resolved_address: Option<SocketAddr>,
+}
+
+impl JoinOpts {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn update(&mut self, other: &Self) {
+        if let Some(proxy) = other.proxy.clone() {
+            self.proxy = Some(proxy);
+        }
+        if let Some(custom_address) = other.custom_address.clone() {
+            self.custom_address = Some(custom_address);
+        }
+        if let Some(custom_resolved_address) = other.custom_resolved_address {
+            self.custom_resolved_address = Some(custom_resolved_address);
+        }
+    }
+
+    /// Set the proxy that this bot will use.
+    #[must_use]
+    pub fn proxy(mut self, proxy: Proxy) -> Self {
+        self.proxy = Some(proxy);
+        self
+    }
+    /// Set the custom address that this bot will send in the handshake packet.
+    #[must_use]
+    pub fn custom_address(mut self, custom_address: ServerAddress) -> Self {
+        self.custom_address = Some(custom_address);
+        self
+    }
+    /// Set the custom resolved address that this bot will use to connect to the
+    /// server.
+    #[must_use]
+    pub fn custom_resolved_address(mut self, custom_resolved_address: SocketAddr) -> Self {
+        self.custom_resolved_address = Some(custom_resolved_address);
+        self
+    }
+}

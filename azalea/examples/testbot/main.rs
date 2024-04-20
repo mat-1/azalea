@@ -181,10 +181,12 @@ async fn swarm_handle(
     _state: SwarmState,
 ) -> anyhow::Result<()> {
     match &event {
-        SwarmEvent::Disconnect(account) => {
+        SwarmEvent::Disconnect(account, join_opts) => {
             println!("bot got kicked! {}", account.username);
             tokio::time::sleep(Duration::from_secs(5)).await;
-            swarm.add_and_retry_forever(account, State::default()).await;
+            swarm
+                .add_and_retry_forever_with_opts(account, State::default(), join_opts)
+                .await;
         }
         SwarmEvent::Chat(chat) => {
             if chat.message().to_string() == "The particle was not visible for anybody" {

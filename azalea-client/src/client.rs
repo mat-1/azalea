@@ -242,7 +242,11 @@ impl Client {
             entity
         };
 
-        let conn = Connection::new(resolved_address, proxy).await?;
+        let conn = if let Some(proxy) = proxy {
+            Connection::new_with_proxy(resolved_address, proxy).await?
+        } else {
+            Connection::new(resolved_address).await?
+        };
         let (conn, game_profile) =
             Self::handshake(ecs_lock.clone(), entity, conn, account, address).await?;
 

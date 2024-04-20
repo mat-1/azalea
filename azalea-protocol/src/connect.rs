@@ -262,7 +262,7 @@ use socks5_impl::protocol::UserKey;
 #[derive(Debug, Clone)]
 pub struct Proxy {
     pub addr: SocketAddr,
-    pub auth: Option<UserKey>
+    pub auth: Option<UserKey>,
 }
 
 impl Proxy {
@@ -273,29 +273,35 @@ impl Proxy {
 
 impl Connection<ClientboundHandshakePacket, ServerboundHandshakePacket> {
     /// Create a new connection to the given address.
-    pub async fn new(address: &SocketAddr, proxy: Option<Proxy>) -> Result<Self, ConnectionError> {
-        let (read_stream, write_stream) = match proxy {
-            Some(proxy) => {
-                let proxy_stream = TcpStream::connect(proxy.addr).await?;
-                let mut stream = BufStream::new(proxy_stream);
-                let auth = match proxy.auth {
-                    Some(user_key) => Some(user_key),
-                    None => None,
-                };
-                
-                let _ = socks5_impl::client::connect(&mut stream, address, auth).await
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-                stream.into_inner()
-            },
-            None => {
-                let stream = TcpStream::connect(address).await?;
+    pub async fn new(address: &SocketAddr) -> Result<Self, ConnectionError> {
+        let stream = TcpStream::connect(address).await?;
 
-                // enable tcp_nodelay
-                stream.set_nodelay(true)?;
+        // enable tcp_nodelay
+        stream.set_nodelay(true)?;
 
-                stream
-            },
-        }.into_split();
+        Self::new_from_stream(stream).await
+    }
+
+    /// Create a new connection to the given address and Socks5 proxy. If you're
+    /// not using a proxy, use [`Self::new`] instead.
+    pub async fn new_with_proxy(
+        address: &SocketAddr,
+        proxy: Proxy,
+    ) -> Result<Self, ConnectionError> {
+        let proxy_stream = TcpStream::connect(proxy.addr).await?;
+        let mut stream = BufStream::new(proxy_stream);
+
+        let _ = socks5_impl::client::connect(&mut stream, address, proxy.auth)
+            .await
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+        Self::new_from_stream(stream.into_inner()).await
+    }
+
+    /// Create a new connection from an existing stream. Useful if you want to
+    /// set custom options on the stream. Otherwise, just use [`Self::new`].
+    pub async fn new_from_stream(stream: TcpStream) -> Result<Self, ConnectionError> {
+        let (read_stream, write_stream) = stream.into_split();
 
         Ok(Connection {
             reader: ReadConnection {

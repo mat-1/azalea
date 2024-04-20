@@ -44,10 +44,10 @@ bevy_log = "0.13.0"
 azalea-entity = { version = "0.9.0", path = "../azalea-entity" }
 bevy_time = "0.13.0"
 rustc-hash = "1.1.0"
-rand = "0.8.5"
 
 [dev-dependencies]
 criterion = "0.5.1"
+rand = "0.8.5"
 
 [features]
 default = ["log"]
