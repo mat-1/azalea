@@ -21,9 +21,6 @@ azalea-chat = { path = "../azalea-chat", version = "0.10.0", features = [
     "numbers",
     "azalea-buf",
 ] }
-azalea-core = { path = "../azalea-core", optional = true, version = "0.10.0", features = [
-    "serde",
-] }
 azalea-crypto = { path = "../azalea-crypto", version = "0.10.0" }
 azalea-protocol-macros = { path = "./azalea-protocol-macros", version = "0.10.0" }
 azalea-registry = { path = "../azalea-registry", version = "0.10.0" }
@@ -49,11 +46,12 @@ log = "0.4.21"
 azalea-entity = { version = "0.10.0", path = "../azalea-entity" }
 azalea-inventory = { version = "0.10.0", path = "../azalea-inventory" }
 socks5-impl = "0.5.12"
+azalea-core = { version = "0.10.0", path = "../azalea-core" }
 
 [features]
 connecting = []
 default = ["packets"]
-packets = ["connecting", "dep:azalea-core"]
+packets = ["connecting"]
 strict_registry = ["packets"]
 
 [dev-dependencies]

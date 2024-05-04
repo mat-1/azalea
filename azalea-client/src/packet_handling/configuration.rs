@@ -16,6 +16,7 @@ use bevy_ecs::system::SystemState;
 use tracing::{debug, error, warn};
 
 use crate::client::InConfigurationState;
+use crate::configuration::RegistryDataCollected;
 use crate::disconnect::DisconnectEvent;
 use crate::local_player::Hunger;
 use crate::packet_handling::game::KeepAliveEvent;
@@ -79,14 +80,30 @@ pub fn process_packet_events(ecs: &mut World) {
     for (player_entity, packet) in events_owned {
         match packet {
             ClientboundConfigurationPacket::RegistryData(p) => {
-                let mut system_state: SystemState<Query<&mut InstanceHolder>> =
-                    SystemState::new(ecs);
-                let mut query = system_state.get_mut(ecs);
-                let instance_holder = query.get_mut(player_entity).unwrap();
-                let mut instance = instance_holder.instance.write();
+                let mut system_state: SystemState<(
+                    Query<Option<&mut RegistryDataCollected>>,
+                    Commands,
+                )> = SystemState::new(ecs);
+                let (mut query, mut commands) = system_state.get_mut(ecs);
+                let registry_data_collected = query.get_mut(player_entity).unwrap();
 
-                // add the new registry data
-                instance.registries.append(p.registry_id, p.entries);
+                // update the collected registry data component if it's already present, or
+                // insert it
+                if let Some(mut registry_data_collected) = registry_data_collected {
+                    registry_data_collected
+                        .holder
+                        .append(p.registry_id, p.entries);
+                } else {
+                    let mut registry_data_collected = RegistryDataCollected::default();
+                    registry_data_collected
+                        .holder
+                        .append(p.registry_id, p.entries);
+                    commands
+                        .entity(player_entity)
+                        .insert(registry_data_collected);
+
+                    system_state.apply(ecs);
+                }
             }
 
             ClientboundConfigurationPacket::CustomPayload(p) => {
@@ -105,10 +122,16 @@ pub fn process_packet_events(ecs: &mut World) {
             ClientboundConfigurationPacket::FinishConfiguration(p) => {
                 debug!("got FinishConfiguration packet: {p:?}");
 
-                let mut system_state: SystemState<Query<&mut RawConnection>> =
-                    SystemState::new(ecs);
+                let mut system_state: SystemState<
+                    Query<(
+                        &mut RawConnection,
+                        &InstanceHolder,
+                        Option<&RegistryDataCollected>,
+                    )>,
+                > = SystemState::new(ecs);
                 let mut query = system_state.get_mut(ecs);
-                let mut raw_connection = query.get_mut(player_entity).unwrap();
+                let (mut raw_connection, instance_holder, registry_data_collected) =
+                    query.get_mut(player_entity).unwrap();
 
                 raw_connection
                     .write_packet(ServerboundFinishConfigurationPacket {}.get())
@@ -117,9 +140,18 @@ pub fn process_packet_events(ecs: &mut World) {
                     );
                 raw_connection.set_state(ConnectionProtocol::Game);
 
+                // update the registries
+                if let Some(registry_data_collected) = registry_data_collected {
+                    instance_holder.instance.write().registries =
+                        registry_data_collected.holder.clone();
+                }
+
                 // these components are added now that we're going to be in the Game state
                 ecs.entity_mut(player_entity)
                     .remove::<InConfigurationState>()
+                    // and remove the RegistryDataCollected component (since it'll need to be clear
+                    // if we happen to go back to the configuration state)
+                    .remove::<RegistryDataCollected>()
                     .insert(crate::JoinedClientBundle {
                         physics_state: crate::PhysicsState::default(),
                         inventory: crate::inventory::InventoryComponent::default(),
