@@ -14,7 +14,7 @@ use derive_more::{Deref, DerefMut};
 
 use crate::{
     interact::SwingArmEvent, local_player::LocalGameMode, movement::MoveEventsSet,
-    packet_handling::game::SendPacketEvent, respawn::perform_respawn, Client,
+    packet_handling::game::SendPacketEvent, respawn::perform_respawn,
 };
 
 pub struct AttackPlugin;
@@ -36,28 +36,6 @@ impl Plugin for AttackPlugin {
                 )
                     .chain(),
             );
-    }
-}
-
-impl Client {
-    /// Attack the entity with the given id.
-    pub fn attack(&mut self, entity_id: MinecraftEntityId) {
-        self.ecs.lock().send_event(AttackEvent {
-            entity: self.entity,
-            target: entity_id,
-        });
-    }
-
-    /// Whether the player has an attack cooldown.
-    pub fn has_attack_cooldown(&self) -> bool {
-        let Some(AttackStrengthScale(ticks_since_last_attack)) =
-            self.get_component::<AttackStrengthScale>()
-        else {
-            // they don't even have an AttackStrengthScale so they probably can't attack
-            // lmao, just return false
-            return false;
-        };
-        ticks_since_last_attack < 1.0
     }
 }
 

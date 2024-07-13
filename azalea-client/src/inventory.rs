@@ -30,7 +30,6 @@ use crate::{
     local_player::PlayerAbilities,
     packet_handling::game::{handle_send_packet_event, SendPacketEvent},
     respawn::perform_respawn,
-    Client,
 };
 
 pub struct InventoryPlugin;
@@ -61,16 +60,6 @@ impl Plugin for InventoryPlugin {
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct InventorySet;
-
-impl Client {
-    /// Return the menu that is currently open. If no menu is open, this will
-    /// have the player's inventory.
-    pub fn menu(&self) -> Menu {
-        let mut ecs = self.ecs.lock();
-        let inventory = self.query::<&InventoryComponent>(&mut ecs);
-        inventory.menu().clone()
-    }
-}
 
 /// A component present on all local players that have an inventory.
 #[derive(Component, Debug, Clone)]

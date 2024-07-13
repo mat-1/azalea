@@ -1,4 +1,3 @@
-use crate::client::Client;
 use crate::packet_handling::game::SendPacketEvent;
 use azalea_core::position::Vec3;
 use azalea_core::tick::GameTick;
@@ -71,43 +70,6 @@ impl Plugin for PlayerMovePlugin {
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct MoveEventsSet;
-
-impl Client {
-    /// Set whether we're jumping. This acts as if you held space in
-    /// vanilla. If you want to jump once, use the `jump` function.
-    ///
-    /// If you're making a realistic client, calling this function every tick is
-    /// recommended.
-    pub fn set_jumping(&mut self, jumping: bool) {
-        let mut ecs = self.ecs.lock();
-        let mut jumping_mut = self.query::<&mut Jumping>(&mut ecs);
-        **jumping_mut = jumping;
-    }
-
-    /// Returns whether the player will try to jump next tick.
-    pub fn jumping(&self) -> bool {
-        *self.component::<Jumping>()
-    }
-
-    /// Sets the direction the client is looking. `y_rot` is yaw (looking to the
-    /// side), `x_rot` is pitch (looking up and down). You can get these
-    /// numbers from the vanilla f3 screen.
-    /// `y_rot` goes from -180 to 180, and `x_rot` goes from -90 to 90.
-    pub fn set_direction(&mut self, y_rot: f32, x_rot: f32) {
-        let mut ecs = self.ecs.lock();
-        let mut look_direction = self.query::<&mut LookDirection>(&mut ecs);
-
-        (look_direction.y_rot, look_direction.x_rot) = (y_rot, x_rot);
-    }
-
-    /// Returns the direction the client is looking. The first value is the y
-    /// rotation (ie. yaw, looking to the side) and the second value is the x
-    /// rotation (ie. pitch, looking up and down).
-    pub fn direction(&self) -> (f32, f32) {
-        let look_direction = self.component::<LookDirection>();
-        (look_direction.y_rot, look_direction.x_rot)
-    }
-}
 
 /// A component that contains the look direction that was last sent over the
 /// network.
@@ -347,55 +309,6 @@ pub fn local_player_ai_step(
         {
             set_sprinting(true, &mut sprinting, &mut attributes);
         }
-    }
-}
-
-impl Client {
-    /// Start walking in the given direction. To sprint, use
-    /// [`Client::sprint`]. To stop walking, call walk with
-    /// `WalkDirection::None`.
-    ///
-    /// # Examples
-    ///
-    /// Walk for 1 second
-    /// ```rust,no_run
-    /// # use azalea_client::{Client, WalkDirection};
-    /// # use std::time::Duration;
-    /// # async fn example(mut bot: Client) {
-    /// bot.walk(WalkDirection::Forward);
-    /// tokio::time::sleep(Duration::from_secs(1)).await;
-    /// bot.walk(WalkDirection::None);
-    /// # }
-    /// ```
-    pub fn walk(&mut self, direction: WalkDirection) {
-        let mut ecs = self.ecs.lock();
-        ecs.send_event(StartWalkEvent {
-            entity: self.entity,
-            direction,
-        });
-    }
-
-    /// Start sprinting in the given direction. To stop moving, call
-    /// [`Client::walk(WalkDirection::None)`]
-    ///
-    /// # Examples
-    ///
-    /// Sprint for 1 second
-    /// ```rust,no_run
-    /// # use azalea_client::{Client, WalkDirection, SprintDirection};
-    /// # use std::time::Duration;
-    /// # async fn example(mut bot: Client) {
-    /// bot.sprint(SprintDirection::Forward);
-    /// tokio::time::sleep(Duration::from_secs(1)).await;
-    /// bot.walk(WalkDirection::None);
-    /// # }
-    /// ```
-    pub fn sprint(&mut self, direction: SprintDirection) {
-        let mut ecs = self.ecs.lock();
-        ecs.send_event(StartSprintEvent {
-            entity: self.entity,
-            direction,
-        });
     }
 }
 

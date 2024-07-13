@@ -71,7 +71,7 @@ pub struct ChunkBatchFinishedEvent {
     pub batch_size: u32,
 }
 
-fn handle_receive_chunk_events(
+pub fn handle_receive_chunk_events(
     mut events: EventReader<ReceiveChunkEvent>,
     mut query: Query<&mut InstanceHolder>,
 ) {

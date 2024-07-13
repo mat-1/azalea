@@ -12,11 +12,10 @@ mod account;
 pub mod attack;
 pub mod chat;
 pub mod chunks;
-mod client;
+pub mod client;
 pub mod configuration;
 pub mod disconnect;
 mod entity_query;
-mod events;
 pub mod interact;
 pub mod inventory;
 mod local_player;
@@ -31,13 +30,11 @@ pub mod task_pool;
 
 pub use account::{Account, AccountOpts};
 pub use azalea_protocol::packets::configuration::serverbound_client_information_packet::ClientInformation;
-pub use client::{
-    start_ecs_runner, Client, DefaultPlugins, JoinError, JoinedClientBundle, StartClientOpts,
-    TickBroadcast,
-};
-pub use events::Event;
+
 pub use local_player::{GameProfileComponent, InstanceHolder, TabList};
 pub use movement::{
     PhysicsState, SprintDirection, StartSprintEvent, StartWalkEvent, WalkDirection,
 };
+
+pub use client::{ClientBuilder, JoinedClientBundle};
 pub use player::PlayerInfo;

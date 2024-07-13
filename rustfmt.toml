@@ -1,1 +1,2 @@
 wrap_comments = true
+edition = "2018"

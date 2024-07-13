@@ -164,7 +164,6 @@ pub fn send_packet_events(
                         Ok(packet) => packet,
                         Err(err) => {
                             error!("failed to read packet: {:?}", err);
-                            debug!("packet bytes: {:?}", raw_packet);
                             continue;
                         }
                     };

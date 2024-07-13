@@ -2,7 +2,7 @@ use azalea_entity::{metadata::Health, EntityUpdateSet};
 use bevy_app::{App, First, Plugin, PreUpdate, Update};
 use bevy_ecs::prelude::*;
 
-use crate::{chat::ChatReceivedEvent, events::death_listener};
+use crate::chat::ChatReceivedEvent;
 
 use self::{
     game::{
@@ -57,7 +57,7 @@ impl Plugin for PacketHandlerPlugin {
                     game::handle_send_packet_event,
                 )
                     .chain(),
-                death_event_on_0_health.before(death_listener),
+                death_event_on_0_health,
             ),
         )
         // we do this instead of add_event so we can handle the events ourselves

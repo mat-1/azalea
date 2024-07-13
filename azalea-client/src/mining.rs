@@ -20,7 +20,6 @@ use crate::{
     local_player::{LocalGameMode, PermissionLevel, PlayerAbilities},
     movement::MoveEventsSet,
     packet_handling::game::SendPacketEvent,
-    Client,
 };
 
 /// A plugin that allows clients to break blocks in the world.
@@ -58,15 +57,6 @@ impl Plugin for MinePlugin {
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct MiningSet;
-
-impl Client {
-    pub fn start_mining(&mut self, position: BlockPos) {
-        self.ecs.lock().send_event(StartMiningBlockEvent {
-            entity: self.entity,
-            position,
-        });
-    }
-}
 
 /// Information about the block we're currently mining. This is only present if
 /// we're currently mining a block.
