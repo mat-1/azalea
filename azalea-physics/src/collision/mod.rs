@@ -58,7 +58,7 @@ fn collide(movement: &Vec3, world: &Instance, physics: &azalea_entity::Physics) 
     // let entity_collisions = world.get_entity_collisions(self,
     // entity_bounding_box.expand_towards(movement));
     let entity_collisions = Vec::new();
-    let collided_delta = if movement.length_sqr() == 0.0 {
+    let collided_delta = if movement.length_squared() == 0.0 {
         *movement
     } else {
         collide_bounding_box(
@@ -109,12 +109,16 @@ fn collide(movement: &Vec3, world: &Instance, physics: &azalea_entity::Physics) 
                 entity_collisions.clone(),
             )
             .add(directly_up_delta);
-            if target_movement.horizontal_distance_sqr() > step_to_delta.horizontal_distance_sqr() {
+            if target_movement.horizontal_distance_squared()
+                > step_to_delta.horizontal_distance_squared()
+            {
                 step_to_delta = target_movement;
             }
         }
 
-        if step_to_delta.horizontal_distance_sqr() > collided_delta.horizontal_distance_sqr() {
+        if step_to_delta.horizontal_distance_squared()
+            > collided_delta.horizontal_distance_squared()
+        {
             return step_to_delta.add(collide_bounding_box(
                 &Vec3 {
                     x: 0.,
@@ -162,7 +166,7 @@ pub fn move_colliding(
 
     let collide_result = collide(movement, world, physics);
 
-    let move_distance = collide_result.length_sqr();
+    let move_distance = collide_result.length_squared();
 
     if move_distance > EPSILON {
         // TODO: fall damage

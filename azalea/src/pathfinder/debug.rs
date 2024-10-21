@@ -60,7 +60,7 @@ pub fn debug_render_path_with_particles(
             let start_vec3 = start.center();
             let end_vec3 = end.center();
 
-            let step_count = (start_vec3.distance_to_sqr(&end_vec3).sqrt() * 4.0) as usize;
+            let step_count = (start_vec3.distance_squared_to(&end_vec3).sqrt() * 4.0) as usize;
 
             let target_block_state = chunks.get_block_state(&movement.target).unwrap_or_default();
             let above_target_block_state = chunks

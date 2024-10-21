@@ -48,10 +48,6 @@ impl Vec3 {
         }
     }
 
-    pub fn length_squared(&self) -> f64 {
-        self.x * self.x + self.y * self.y + self.z * self.z
-    }
-
     pub fn normalize(&self) -> Vec3 {
         let length = f64::sqrt(self.x * self.x + self.y * self.y + self.z * self.z);
         if length < 1e-4 {

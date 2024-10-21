@@ -26,25 +26,25 @@ macro_rules! vec3_impl {
             /// Get the distance of this vector to the origin by doing `x^2 + y^2 +
             /// z^2`.
             #[inline]
-            pub fn length_sqr(&self) -> $type {
+            pub fn length_squared(&self) -> $type {
                 self.x * self.x + self.y * self.y + self.z * self.z
             }
 
             /// Get the squared distance from this position to another position.
-            /// Equivalent to `(self - other).length_sqr()`.
+            /// Equivalent to `(self - other).length_squared()`.
             #[inline]
-            pub fn distance_to_sqr(&self, other: &Self) -> $type {
-                (self - other).length_sqr()
+            pub fn distance_squared_to(&self, other: &Self) -> $type {
+                (self - other).length_squared()
             }
 
             #[inline]
-            pub fn horizontal_distance_sqr(&self) -> $type {
+            pub fn horizontal_distance_squared(&self) -> $type {
                 self.x * self.x + self.z * self.z
             }
 
             #[inline]
-            pub fn horizontal_distance_to_sqr(&self, other: &Self) -> $type {
-                (self - other).horizontal_distance_sqr()
+            pub fn horizontal_distance_squared_to(&self, other: &Self) -> $type {
+                (self - other).horizontal_distance_squared()
             }
 
             /// Return a new instance of this position with the y coordinate
@@ -269,6 +269,46 @@ impl BlockPos {
     /// Get the distance of this vector from the origin by doing `x + y + z`.
     pub fn length_manhattan(&self) -> u32 {
         (self.x.abs() + self.y.abs() + self.z.abs()) as u32
+    }
+
+    /// Make a new BlockPos with the lower coordinates for each axis.
+    ///
+    /// ```
+    /// # use azalea_core::position::BlockPos;
+    /// assert_eq!(
+    ///     BlockPos::min(
+    ///        &BlockPos::new(1, 20, 300),
+    ///        &BlockPos::new(50, 40, 30),
+    ///    ),
+    ///    BlockPos::new(1, 20, 30),
+    /// );
+    /// ```
+    pub fn min(&self, other: &Self) -> Self {
+        Self {
+            x: self.x.min(other.x),
+            y: self.y.min(other.y),
+            z: self.z.min(other.z),
+        }
+    }
+
+    /// Make a new BlockPos with the higher coordinates for each axis.
+    ///
+    /// ```
+    /// # use azalea_core::position::BlockPos;
+    /// assert_eq!(
+    ///    BlockPos::max(
+    ///       &BlockPos::new(1, 20, 300),
+    ///       &BlockPos::new(50, 40, 30),
+    ///   ),
+    ///   BlockPos::new(50, 40, 300),
+    /// );
+    /// ```
+    pub fn max(&self, other: &Self) -> Self {
+        Self {
+            x: self.x.max(other.x),
+            y: self.y.max(other.y),
+            z: self.z.max(other.z),
+        }
     }
 }
 

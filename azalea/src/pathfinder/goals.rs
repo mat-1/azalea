@@ -3,18 +3,17 @@
 use std::f32::consts::SQRT_2;
 
 use azalea_core::position::{BlockPos, Vec3};
-use azalea_world::ChunkStorage;
 
 use super::costs::{COST_HEURISTIC, FALL_N_BLOCKS_COST, JUMP_ONE_BLOCK_COST};
 
-pub trait Goal {
+pub trait Goal: Send + Sync {
     #[must_use]
     fn heuristic(&self, n: BlockPos) -> f32;
     #[must_use]
     fn success(&self, n: BlockPos) -> bool;
 }
 
-/// Move to the given block position.
+/// Move to the given block position. This is the most commonly used goal.
 #[derive(Debug)]
 pub struct BlockPosGoal(pub BlockPos);
 impl Goal for BlockPosGoal {
@@ -30,7 +29,7 @@ impl Goal for BlockPosGoal {
     }
 }
 
-fn xz_heuristic(dx: f32, dz: f32) -> f32 {
+pub fn xz_heuristic(dx: f32, dz: f32) -> f32 {
     let x = dx.abs();
     let z = dz.abs();
 
@@ -65,7 +64,7 @@ impl Goal for XZGoal {
     }
 }
 
-fn y_heuristic(dy: f32) -> f32 {
+pub fn y_heuristic(dy: f32) -> f32 {
     if dy > 0.0 {
         *JUMP_ONE_BLOCK_COST * dy
     } else {
@@ -100,13 +99,15 @@ impl Goal for RadiusGoal {
         let dx = (self.pos.x - n.x) as f32;
         let dy = (self.pos.y - n.y) as f32;
         let dz = (self.pos.z - n.z) as f32;
-        dx * dx + dy * dy + dz * dz
+
+        xz_heuristic(dx, dz) + y_heuristic(dy)
     }
     fn success(&self, n: BlockPos) -> bool {
         let n = n.center();
         let dx = (self.pos.x - n.x) as f32;
         let dy = (self.pos.y - n.y) as f32;
         let dz = (self.pos.z - n.z) as f32;
+
         dx * dx + dy * dy + dz * dz <= self.radius * self.radius
     }
 }
@@ -179,35 +180,24 @@ impl<T: Goal> Goal for AndGoals<T> {
     }
 }
 
-/// Move to a position where we can reach the given block.
+/// Multiply the heuristic of the given goal by the given factor.
+///
+/// Setting the value to less than 1 makes it be biased towards the goal, and
+/// setting it to more than 1 makes it be biased away from the goal. For
+/// example, setting the value to 0.5 makes the pathfinder think that the
+/// goal is half the distance that it actually is.
+///
+/// Note that this may reduce the quality of paths or make the pathfinder slower
+/// if used incorrectly.
+///
+/// This goal is most useful when combined with [`OrGoal`].
 #[derive(Debug)]
-pub struct ReachBlockPosGoal {
-    pub pos: BlockPos,
-    pub chunk_storage: ChunkStorage,
-}
-impl Goal for ReachBlockPosGoal {
+pub struct ScaleGoal<T: Goal>(pub T, pub f32);
+impl<T: Goal> Goal for ScaleGoal<T> {
     fn heuristic(&self, n: BlockPos) -> f32 {
-        BlockPosGoal(self.pos).heuristic(n)
+        self.0.heuristic(n) * self.1
     }
     fn success(&self, n: BlockPos) -> bool {
-        // only do the expensive check if we're close enough
-        let max_pick_range = 6;
-        let actual_pick_range = 4.5;
-
-        let distance = (self.pos - n).length_sqr();
-        if distance > max_pick_range * max_pick_range {
-            return false;
-        }
-
-        let eye_position = n.to_vec3_floored() + Vec3::new(0.5, 1.62, 0.5);
-        let look_direction = crate::direction_looking_at(&eye_position, &self.pos.center());
-        let block_hit_result = azalea_client::interact::pick(
-            &look_direction,
-            &eye_position,
-            &self.chunk_storage,
-            actual_pick_range,
-        );
-
-        block_hit_result.block_pos == self.pos
+        self.0.success(n)
     }
 }

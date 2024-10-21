@@ -1,6 +1,7 @@
 use crate::accept_resource_packs::AcceptResourcePacksPlugin;
 use crate::app::{App, Plugin, PluginGroup, PluginGroupBuilder};
 use crate::auto_respawn::AutoRespawnPlugin;
+use crate::auto_tool::AutoToolPlugin;
 use crate::container::ContainerPlugin;
 use crate::ecs::{
     component::Component,
@@ -14,6 +15,7 @@ use azalea_client::mining::Mining;
 use azalea_client::TickBroadcast;
 use azalea_core::position::{BlockPos, Vec3};
 use azalea_core::tick::GameTick;
+use azalea_entity::direction_looking_at;
 use azalea_entity::{
     clamp_look_direction, metadata::Player, EyeHeight, Jumping, LocalEntity, LookDirection,
     Position,
@@ -23,7 +25,6 @@ use bevy_app::Update;
 use bevy_ecs::prelude::Event;
 use bevy_ecs::schedule::IntoSystemConfigs;
 use futures_lite::Future;
-use std::f64::consts::PI;
 use tracing::trace;
 
 use crate::pathfinder::PathfinderPlugin;
@@ -164,7 +165,7 @@ pub struct LookAtEvent {
     /// The position we want the entity to be looking at.
     pub position: Vec3,
 }
-fn look_at_listener(
+pub fn look_at_listener(
     mut events: EventReader<LookAtEvent>,
     mut query: Query<(&Position, &EyeHeight, &mut LookDirection)>,
 ) {
@@ -182,25 +183,6 @@ fn look_at_listener(
     }
 }
 
-/// Return the look direction that would make a client at `current` be
-/// looking at `target`.
-pub fn direction_looking_at(current: &Vec3, target: &Vec3) -> LookDirection {
-    // borrowed from mineflayer's Bot.lookAt because i didn't want to do math
-    let delta = target - current;
-    let y_rot = (PI - f64::atan2(-delta.x, -delta.z)) * (180.0 / PI);
-    let ground_distance = f64::sqrt(delta.x * delta.x + delta.z * delta.z);
-    let x_rot = f64::atan2(delta.y, ground_distance) * -(180.0 / PI);
-
-    // clamp
-    let y_rot = y_rot.rem_euclid(360.0);
-    let x_rot = x_rot.clamp(-90.0, 90.0) % 360.0;
-
-    LookDirection {
-        x_rot: x_rot as f32,
-        y_rot: y_rot as f32,
-    }
-}
-
 /// A [`PluginGroup`] for the plugins that add extra bot functionality to the
 /// client.
 pub struct DefaultBotPlugins;
@@ -213,5 +195,6 @@ impl PluginGroup for DefaultBotPlugins {
             .add(ContainerPlugin)
             .add(AutoRespawnPlugin)
             .add(AcceptResourcePacksPlugin)
+            .add(AutoToolPlugin)
     }
 }

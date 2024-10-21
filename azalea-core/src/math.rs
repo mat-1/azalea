@@ -25,7 +25,7 @@ pub fn cos(x: f32) -> f32 {
 }
 
 // TODO: make this generic
-pub fn binary_search(mut min: i32, max: i32, predicate: &dyn Fn(i32) -> bool) -> i32 {
+pub fn binary_search(mut min: i32, max: i32, predicate: impl Fn(i32) -> bool) -> i32 {
     let mut diff = max - min;
     while diff > 0 {
         let diff_mid = diff / 2;

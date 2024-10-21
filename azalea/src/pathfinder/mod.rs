@@ -3,14 +3,17 @@
 //! Much of this code is based on [Baritone](https://github.com/cabaletta/baritone).
 
 pub mod astar;
+pub mod block_box;
 pub mod costs;
 mod debug;
+pub mod extras;
 pub mod goals;
 pub mod mining;
 pub mod moves;
 pub mod simulation;
 pub mod world;
 
+use crate::auto_tool::StartMiningBlockWithAutoToolEvent;
 use crate::bot::{JumpEvent, LookAtEvent};
 use crate::pathfinder::astar::a_star;
 use crate::WalkDirection;
@@ -26,7 +29,7 @@ use crate::ecs::{
 use crate::pathfinder::moves::PathfinderCtx;
 use crate::pathfinder::world::CachedWorld;
 use azalea_client::inventory::{InventoryComponent, InventorySet, SetSelectedHotbarSlotEvent};
-use azalea_client::mining::{Mining, StartMiningBlockEvent};
+use azalea_client::mining::Mining;
 use azalea_client::movement::MoveEventsSet;
 use azalea_client::{InstanceHolder, StartSprintEvent, StartWalkEvent};
 use azalea_core::position::BlockPos;
@@ -91,14 +94,23 @@ impl Plugin for PathfinderPlugin {
                     .chain()
                     .before(MoveEventsSet)
                     .before(InventorySet),
-            );
+            )
+            .add_plugins(crate::pathfinder::extras::PathfinderExtrasPlugin);
     }
+}
+
+pub trait PathfinderClientExt {
+    fn goto(&self, goal: impl Goal + Send + Sync + 'static);
+    fn goto_without_mining(&self, goal: impl Goal + Send + Sync + 'static);
+    fn stop_pathfinding(&self);
 }
 
 /// A component that makes this client able to pathfind.
 #[derive(Component, Default, Clone)]
 pub struct Pathfinder {
-    pub goal: Option<Arc<dyn Goal + Send + Sync>>,
+    /// The goal that the pathfinder is currently trying to reach. If this is
+    /// None, that means we're not pathfinding.
+    pub goal: Option<Arc<dyn Goal>>,
     pub successors_fn: Option<SuccessorsFn>,
     pub is_calculating: bool,
     pub allow_mining: bool,
@@ -120,7 +132,7 @@ pub struct ExecutingPath {
 #[derive(Event)]
 pub struct GotoEvent {
     pub entity: Entity,
-    pub goal: Arc<dyn Goal + Send + Sync>,
+    pub goal: Arc<dyn Goal>,
     /// The function that's used for checking what moves are possible. Usually
     /// `pathfinder::moves::default_move`
     pub successors_fn: SuccessorsFn,
@@ -146,12 +158,6 @@ fn add_default_pathfinder(
     for entity in &mut query {
         commands.entity(entity).insert(Pathfinder::default());
     }
-}
-
-pub trait PathfinderClientExt {
-    fn goto(&self, goal: impl Goal + Send + Sync + 'static);
-    fn goto_without_mining(&self, goal: impl Goal + Send + Sync + 'static);
-    fn stop_pathfinding(&self);
 }
 
 impl PathfinderClientExt for azalea_client::Client {
@@ -193,7 +199,7 @@ impl PathfinderClientExt for azalea_client::Client {
 #[derive(Component)]
 pub struct ComputePath(Task<Option<PathFoundEvent>>);
 
-fn goto_listener(
+pub fn goto_listener(
     mut commands: Commands,
     mut events: EventReader<GotoEvent>,
     mut query: Query<(
@@ -453,7 +459,7 @@ fn timeout_movement(
         // don't timeout if we're mining
         if let Some(mining) = mining {
             // also make sure we're close enough to the block that's being mined
-            if mining.pos.distance_to_sqr(&BlockPos::from(position)) < 6_i32.pow(2) {
+            if mining.pos.distance_squared_to(&BlockPos::from(position)) < 6_i32.pow(2) {
                 // also reset the last_node_reached_at so we don't timeout after we finish
                 // mining
                 executing_path.last_node_reached_at = Instant::now();
@@ -694,7 +700,7 @@ fn tick_execute_path(
     mut sprint_events: EventWriter<StartSprintEvent>,
     mut walk_events: EventWriter<StartWalkEvent>,
     mut jump_events: EventWriter<JumpEvent>,
-    mut start_mining_events: EventWriter<StartMiningBlockEvent>,
+    mut start_mining_events: EventWriter<StartMiningBlockWithAutoToolEvent>,
     mut set_selected_hotbar_slot_events: EventWriter<SetSelectedHotbarSlotEvent>,
 ) {
     for (entity, executing_path, position, physics, mining, instance_holder, inventory_component) in
@@ -747,13 +753,14 @@ fn recalculate_if_has_goal_but_no_path(
 #[derive(Event)]
 pub struct StopPathfindingEvent {
     pub entity: Entity,
-    /// If false, then let the current movement finish before stopping. If true,
-    /// then stop moving immediately. This might cause the bot to fall if it was
-    /// in the middle of parkouring.
+    /// Stop moving immediately. This may cause the bot to fall if it was in the
+    /// middle of parkouring.
+    ///
+    /// If this is false, it'll stop moving after the current movement is done.
     pub force: bool,
 }
 
-fn handle_stop_pathfinding_event(
+pub fn handle_stop_pathfinding_event(
     mut events: EventReader<StopPathfindingEvent>,
     mut query: Query<(&mut Pathfinder, &mut ExecutingPath)>,
     mut walk_events: EventWriter<StartWalkEvent>,
@@ -787,7 +794,7 @@ fn handle_stop_pathfinding_event(
     }
 }
 
-fn stop_pathfinding_on_instance_change(
+pub fn stop_pathfinding_on_instance_change(
     mut query: Query<(Entity, &mut ExecutingPath), Changed<InstanceName>>,
     mut stop_pathfinding_events: EventWriter<StopPathfindingEvent>,
 ) {

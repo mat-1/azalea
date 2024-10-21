@@ -1,13 +1,34 @@
 use azalea_block::{Block, BlockState};
-use azalea_client::{inventory::InventoryComponent, Client};
-use azalea_entity::{FluidOnEyes, Physics};
+use azalea_client::{
+    inventory::{InventoryComponent, SetSelectedHotbarSlotEvent},
+    mining::StartMiningBlockEvent,
+    Client, InstanceHolder,
+};
+use azalea_core::position::BlockPos;
+use azalea_entity::{update_fluid_on_eyes, FluidOnEyes, Physics};
 use azalea_inventory::{ItemSlot, Menu};
 use azalea_registry::{DataComponentKind, Fluid};
+use bevy_app::{App, Plugin, Update};
+use bevy_ecs::prelude::*;
 
 #[derive(Debug)]
 pub struct BestToolResult {
     pub index: usize,
     pub percentage_per_tick: f32,
+}
+
+pub struct AutoToolPlugin;
+impl Plugin for AutoToolPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_event::<StartMiningBlockWithAutoToolEvent>()
+            .add_systems(
+                Update,
+                start_mining_block_with_auto_tool_listener
+                    .before(azalea_client::inventory::handle_set_selected_hotbar_slot_event)
+                    .after(update_fluid_on_eyes)
+                    .after(azalea_client::chunks::handle_receive_chunk_events),
+            );
+    }
 }
 
 pub trait AutoToolClientExt {
@@ -137,5 +158,51 @@ pub fn accurate_best_tool_in_hotbar_for_block(
     BestToolResult {
         index: best_slot.unwrap_or(0),
         percentage_per_tick: best_speed,
+    }
+}
+
+/// An event to mine a given block, while automatically picking the best tool in
+/// our hotbar to use.
+#[derive(Event)]
+pub struct StartMiningBlockWithAutoToolEvent {
+    pub entity: Entity,
+    pub position: BlockPos,
+}
+
+pub fn start_mining_block_with_auto_tool_listener(
+    mut query: Query<(
+        &mut InstanceHolder,
+        &InventoryComponent,
+        &Physics,
+        &FluidOnEyes,
+    )>,
+    mut events: EventReader<StartMiningBlockWithAutoToolEvent>,
+    mut set_selected_hotbar_slot_events: EventWriter<SetSelectedHotbarSlotEvent>,
+    mut start_mining_block_events: EventWriter<StartMiningBlockEvent>,
+) {
+    for event in events.read() {
+        let (instance_holder, inventory, physics, fluid_on_eyes) =
+            query.get_mut(event.entity).unwrap();
+        let instance = instance_holder.instance.read();
+        let block_state = instance
+            .chunks
+            .get_block_state(&event.position)
+            .unwrap_or_default();
+
+        let best_tool_result = accurate_best_tool_in_hotbar_for_block(
+            block_state,
+            &inventory.inventory_menu,
+            physics,
+            fluid_on_eyes,
+        );
+
+        set_selected_hotbar_slot_events.send(SetSelectedHotbarSlotEvent {
+            entity: event.entity,
+            slot: best_tool_result.index as u8,
+        });
+        start_mining_block_events.send(StartMiningBlockEvent {
+            entity: event.entity,
+            position: event.position,
+        });
     }
 }

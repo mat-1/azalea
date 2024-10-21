@@ -229,9 +229,10 @@ fn execute_descend_move(mut ctx: ExecuteCtx) {
     let start_center = start.center();
     let center = target.center();
 
-    let horizontal_distance_from_target = (center - position).horizontal_distance_sqr().sqrt();
-    let horizontal_distance_from_start =
-        (start.center() - position).horizontal_distance_sqr().sqrt();
+    let horizontal_distance_from_target = (center - position).horizontal_distance_squared().sqrt();
+    let horizontal_distance_from_start = (start.center() - position)
+        .horizontal_distance_squared()
+        .sqrt();
 
     let dest_ahead = Vec3::new(
         start_center.x + (center.x - start_center.x) * 1.5,
@@ -402,8 +403,9 @@ fn execute_downward_move(mut ctx: ExecuteCtx) {
 
     let target_center = target.center();
 
-    let horizontal_distance_from_target =
-        (target_center - position).horizontal_distance_sqr().sqrt();
+    let horizontal_distance_from_target = (target_center - position)
+        .horizontal_distance_squared()
+        .sqrt();
 
     if horizontal_distance_from_target > 0.25 {
         ctx.look_at(target_center);

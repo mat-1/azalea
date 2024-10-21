@@ -750,7 +750,7 @@ pub struct SetSelectedHotbarSlotEvent {
     /// The hotbar slot to select. This should be in the range 0..=8.
     pub slot: u8,
 }
-fn handle_set_selected_hotbar_slot_event(
+pub fn handle_set_selected_hotbar_slot_event(
     mut events: EventReader<SetSelectedHotbarSlotEvent>,
     mut send_packet_events: EventWriter<SendPacketEvent>,
     mut query: Query<&mut InventoryComponent>,

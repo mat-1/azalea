@@ -62,21 +62,15 @@ pub fn clip(chunk_storage: &ChunkStorage, context: ClipContext) -> BlockHitResul
         context.from,
         context.to,
         context,
-        |context, block_pos| {
+        |ctx, block_pos| {
             let block_state = chunk_storage.get_block_state(block_pos).unwrap_or_default();
             // TODO: add fluid stuff to this (see getFluidState in vanilla source)
-            let block_shape = context.block_shape(block_state);
-            clip_with_interaction_override(
-                &context.from,
-                &context.to,
-                block_pos,
-                block_shape,
-                &block_state,
-            )
+            let block_shape = ctx.block_shape(block_state);
+            clip_with_interaction_override(&ctx.from, &ctx.to, block_pos, block_shape, &block_state)
             // let block_distance = if let Some(block_hit_result) =
-            // block_hit_result {     context.from.distance_to_sqr(&
+            // block_hit_result {     context.from.distance_squared_to(&
             // block_hit_result.location) } else {
-            //     f64::MAX
+            //     f64::INFINITY
             // };
         },
         |context| {
@@ -90,19 +84,6 @@ pub fn clip(chunk_storage: &ChunkStorage, context: ClipContext) -> BlockHitResul
     )
 }
 
-// default BlockHitResult clipWithInteractionOverride(Vec3 world, Vec3 from,
-// BlockPos to, VoxelShape shape,     BlockState block) {
-//  BlockHitResult blockHitResult = shape.clip(world, from, to);
-//  if (blockHitResult != null) {
-//     BlockHitResult var7 = block.getInteractionShape(this, to).clip(world,
-// from, to);     if (var7 != null
-//           && var7.getLocation().subtract(world).lengthSqr() <
-// blockHitResult.getLocation().subtract(world).lengthSqr()) {        return
-// blockHitResult.withDirection(var7.getDirection());     }
-//  }
-
-//  return blockHitResult;
-// }
 fn clip_with_interaction_override(
     from: &Vec3,
     to: &Vec3,
@@ -111,6 +92,7 @@ fn clip_with_interaction_override(
     block_state: &BlockState,
 ) -> Option<BlockHitResult> {
     let block_hit_result = block_shape.clip(from, to, block_pos);
+    println!("block_hit_result: {block_hit_result:?}");
     if let Some(block_hit_result) = block_hit_result {
         // TODO: minecraft calls .getInteractionShape here
         // some blocks (like tall grass) have a physics shape that's different from the
@@ -119,8 +101,8 @@ fn clip_with_interaction_override(
         let interaction_shape = block_state.shape();
         let interaction_hit_result = interaction_shape.clip(from, to, block_pos);
         if let Some(interaction_hit_result) = interaction_hit_result {
-            if interaction_hit_result.location.distance_to_sqr(from)
-                < block_hit_result.location.distance_to_sqr(from)
+            if interaction_hit_result.location.distance_squared_to(from)
+                < block_hit_result.location.distance_squared_to(from)
             {
                 return Some(block_hit_result.with_direction(interaction_hit_result.direction));
             }
@@ -206,6 +188,9 @@ pub fn traverse_blocks<C, T>(
                 math::fract(right_before_start.z)
             },
     };
+
+    println!("percentage_step: {percentage_step:?}");
+    println!("percentage: {percentage:?}");
 
     loop {
         if percentage.x > 1. && percentage.y > 1. && percentage.z > 1. {

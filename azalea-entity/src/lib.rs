@@ -26,6 +26,7 @@ use derive_more::{Deref, DerefMut};
 pub use dimensions::EntityDimensions;
 use plugin::indexing::EntityChunkPos;
 use std::{
+    f64::consts::PI,
     fmt::Debug,
     hash::{Hash, Hasher},
 };
@@ -426,24 +427,53 @@ impl FluidOnEyes {
 #[derive(Component, Clone, Debug, PartialEq, Deref, DerefMut)]
 pub struct OnClimbable(bool);
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::PartialWorld;
+/// Return the look direction that would make a client at `current` be
+/// looking at `target`.
+pub fn direction_looking_at(current: &Vec3, target: &Vec3) -> LookDirection {
+    // borrowed from mineflayer's Bot.lookAt because i didn't want to do math
+    let delta = target - current;
+    let y_rot = (PI - f64::atan2(-delta.x, -delta.z)) * (180.0 / PI);
+    let ground_distance = f64::sqrt(delta.x * delta.x + delta.z * delta.z);
+    let x_rot = f64::atan2(delta.y, ground_distance) * -(180.0 / PI);
 
-//     #[test]
-//     fn from_mut_entity_to_ref_entity() {
-//         let mut world = PartialWorld::default();
-//         let uuid = Uuid::from_u128(100);
-//         world.add_entity(
-//             0,
-//             EntityData::new(
-//                 uuid,
-//                 Vec3::default(),
-//                 EntityMetadata::Player(metadata::Player::default()),
-//             ),
-//         );
-//         let entity: Entity = world.entity_mut(0).unwrap();
-//         assert_eq!(entity.uuid, uuid);
-//     }
-// }
+    // clamp
+    let y_rot = y_rot.rem_euclid(360.0);
+    let x_rot = x_rot.clamp(-90.0, 90.0) % 360.0;
+
+    LookDirection {
+        x_rot: x_rot as f32,
+        y_rot: y_rot as f32,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_direction_looking_at() {
+        let direction = direction_looking_at(&Vec3::new(0.0, 0.0, 0.0), &Vec3::new(0.0, 0.0, 1.0));
+        assert_eq!(direction.y_rot, 0.0);
+        assert_eq!(direction.x_rot, 0.0);
+
+        let direction = direction_looking_at(&Vec3::new(0.0, 0.0, 0.0), &Vec3::new(1.0, 0.0, 0.0));
+        assert_eq!(direction.y_rot, 270.0);
+        assert_eq!(direction.x_rot, 0.0);
+
+        let direction = direction_looking_at(&Vec3::new(0.0, 0.0, 0.0), &Vec3::new(0.0, 0.0, -1.0));
+        assert_eq!(direction.y_rot, 180.0);
+        assert_eq!(direction.x_rot, 0.0);
+
+        let direction = direction_looking_at(&Vec3::new(0.0, 0.0, 0.0), &Vec3::new(-1.0, 0.0, 0.0));
+        assert_eq!(direction.y_rot, 90.0);
+        assert_eq!(direction.x_rot, 0.0);
+
+        let direction = direction_looking_at(&Vec3::new(0.0, 0.0, 0.0), &Vec3::new(0.0, 1.0, 0.0));
+        assert_eq!(direction.y_rot, 0.0);
+        assert_eq!(direction.x_rot, -90.0);
+
+        let direction = direction_looking_at(&Vec3::new(0.0, 0.0, 0.0), &Vec3::new(0.0, -1.0, 0.0));
+        assert_eq!(direction.y_rot, 0.0);
+        assert_eq!(direction.x_rot, 90.0);
+    }
+}

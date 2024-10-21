@@ -370,3 +370,58 @@ fn update_modifiers_for_held_item(
             ));
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use azalea_core::position::ChunkPos;
+    use azalea_world::{Chunk, ChunkStorage, PartialInstance};
+
+    use super::*;
+
+    #[test]
+    fn test_pick() {
+        let mut partial_world = PartialInstance::default();
+        let mut world = ChunkStorage::default();
+
+        partial_world
+            .chunks
+            .update_view_center(ChunkPos { x: -184, z: -2 });
+        partial_world.chunks.set(
+            &ChunkPos { x: -184, z: -2 },
+            Some(Chunk::default()),
+            &mut world,
+        );
+
+        let set_block = |x, y, z| {
+            partial_world
+                .chunks
+                .set_block_state(
+                    &BlockPos::new(x, y, z),
+                    azalea_registry::Block::Stone.into(),
+                    &world,
+                )
+                .expect(&format!("failed to set block at {x} {y} {z}"));
+        };
+
+        for x in -2940..=-2936 {
+            for z in -24..=-20 {
+                set_block(x, 64, z);
+                set_block(x, 65, z);
+            }
+        }
+
+        let hit_result = pick(
+            &LookDirection {
+                y_rot: 45.,
+                x_rot: 35.66751,
+                // x_rot: 35.,
+            },
+            &Vec3::new(-2936.5, 66. + 1.53, -22.5),
+            &world,
+            4.5,
+        );
+
+        assert!(!hit_result.miss);
+        assert_eq!(hit_result.block_pos, BlockPos::new(-2939, 65, -21));
+    }
+}

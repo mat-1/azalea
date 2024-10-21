@@ -3,7 +3,7 @@ pub mod parkour;
 
 use std::{fmt::Debug, sync::Arc};
 
-use crate::{auto_tool::best_tool_in_hotbar_for_block, JumpEvent, LookAtEvent};
+use crate::{auto_tool::StartMiningBlockWithAutoToolEvent, JumpEvent, LookAtEvent};
 
 use super::{
     astar,
@@ -11,8 +11,8 @@ use super::{
     world::{is_block_state_passable, CachedWorld},
 };
 use azalea_client::{
-    inventory::SetSelectedHotbarSlotEvent, mining::StartMiningBlockEvent, SprintDirection,
-    StartSprintEvent, StartWalkEvent, WalkDirection,
+    inventory::SetSelectedHotbarSlotEvent, SprintDirection, StartSprintEvent, StartWalkEvent,
+    WalkDirection,
 };
 use azalea_core::position::{BlockPos, Vec3};
 use azalea_inventory::Menu;
@@ -61,7 +61,7 @@ pub struct ExecuteCtx<'w1, 'w2, 'w3, 'w4, 'w5, 'w6, 'a> {
     pub sprint_events: &'a mut EventWriter<'w2, StartSprintEvent>,
     pub walk_events: &'a mut EventWriter<'w3, StartWalkEvent>,
     pub jump_events: &'a mut EventWriter<'w4, JumpEvent>,
-    pub start_mining_events: &'a mut EventWriter<'w5, StartMiningBlockEvent>,
+    pub start_mining_events: &'a mut EventWriter<'w5, StartMiningBlockWithAutoToolEvent>,
     pub set_selected_hotbar_slot_events: &'a mut EventWriter<'w6, SetSelectedHotbarSlotEvent>,
 }
 
@@ -133,22 +133,15 @@ impl ExecuteCtx<'_, '_, '_, '_, '_, '_, '_> {
             return false;
         }
 
-        let best_tool_result = best_tool_in_hotbar_for_block(block_state, &self.menu);
-
-        self.set_selected_hotbar_slot_events
-            .send(SetSelectedHotbarSlotEvent {
-                entity: self.entity,
-                slot: best_tool_result.index as u8,
-            });
-
         self.is_currently_mining = true;
 
         self.walk(WalkDirection::None);
         self.look_at_exact(block.center());
-        self.start_mining_events.send(StartMiningBlockEvent {
-            entity: self.entity,
-            position: block,
-        });
+        self.start_mining_events
+            .send(StartMiningBlockWithAutoToolEvent {
+                entity: self.entity,
+                position: block,
+            });
 
         true
     }
@@ -157,7 +150,7 @@ impl ExecuteCtx<'_, '_, '_, '_, '_, '_, '_> {
     /// of the current node first.
     pub fn mine_while_at_start(&mut self, block: BlockPos) -> bool {
         let horizontal_distance_from_start = (self.start.center() - self.position)
-            .horizontal_distance_sqr()
+            .horizontal_distance_squared()
             .sqrt();
         let at_start_position =
             BlockPos::from(self.position) == self.start && horizontal_distance_from_start < 0.25;

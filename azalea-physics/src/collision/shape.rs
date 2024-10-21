@@ -421,15 +421,15 @@ impl VoxelShape {
             return None;
         }
         let vector = to - from;
-        if vector.length_sqr() < EPSILON {
+        if vector.length_squared() < EPSILON {
             return None;
         }
-        let right_after_start = from + &(vector * 0.0001);
+        let right_after_start = from + &(vector * 0.001);
 
         if self.shape().is_full_wide(
-            self.find_index(Axis::X, right_after_start.x - block_pos.x as f64),
-            self.find_index(Axis::Y, right_after_start.y - block_pos.y as f64),
-            self.find_index(Axis::Z, right_after_start.z - block_pos.z as f64),
+            self.find_index(Axis::X, right_after_start.x - (block_pos.x as f64)),
+            self.find_index(Axis::Y, right_after_start.y - (block_pos.y as f64)),
+            self.find_index(Axis::Z, right_after_start.z - (block_pos.z as f64)),
         ) {
             Some(BlockHitResult {
                 block_pos: *block_pos,
