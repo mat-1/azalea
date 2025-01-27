@@ -1496,8 +1496,6 @@ pub struct Eating(pub bool);
 pub struct AbstractHorseStanding(pub bool);
 #[derive(Component, Deref, DerefMut, Clone, Copy)]
 pub struct Bred(pub bool);
-#[derive(Component, Deref, DerefMut, Clone, Copy)]
-pub struct Saddled(pub bool);
 #[derive(Component, Deref, DerefMut, Clone)]
 pub struct Dash(pub bool);
 #[derive(Component, Deref, DerefMut, Clone)]
@@ -1584,7 +1582,6 @@ impl Default for CamelMetadataBundle {
                 eating: Eating(false),
                 abstract_horse_standing: AbstractHorseStanding(false),
                 bred: Bred(false),
-                saddled: Saddled(false),
             },
             dash: Dash(false),
             last_pose_change_tick: LastPoseChangeTick(0),
@@ -2710,7 +2707,6 @@ impl Default for DonkeyMetadataBundle {
                     eating: Eating(false),
                     abstract_horse_standing: AbstractHorseStanding(false),
                     bred: Bred(false),
-                    saddled: Saddled(false),
                 },
                 chest: Chest(false),
             },
@@ -3485,6 +3481,8 @@ impl Default for ExperienceBottleMetadataBundle {
     }
 }
 
+#[derive(Component, Deref, DerefMut, Clone)]
+pub struct Value(pub i32);
 #[derive(Component)]
 pub struct ExperienceOrb;
 impl ExperienceOrb {
@@ -3494,6 +3492,9 @@ impl ExperienceOrb {
     ) -> Result<(), UpdateMetadataError> {
         match d.index {
             0..=7 => AbstractEntity::apply_metadata(entity, d)?,
+            8 => {
+                entity.insert(Value(d.value.into_int()?));
+            }
             _ => {}
         }
         Ok(())
@@ -3504,6 +3505,7 @@ impl ExperienceOrb {
 pub struct ExperienceOrbMetadataBundle {
     _marker: ExperienceOrb,
     parent: AbstractEntityMetadataBundle,
+    value: Value,
 }
 impl Default for ExperienceOrbMetadataBundle {
     fn default() -> Self {
@@ -3526,6 +3528,7 @@ impl Default for ExperienceOrbMetadataBundle {
                 pose: Pose::default(),
                 ticks_frozen: TicksFrozen(Default::default()),
             },
+            value: Value(0),
         }
     }
 }
@@ -3854,10 +3857,10 @@ impl Fox {
                 entity.insert(FoxInterested(bitfield & 0x8 != 0));
             }
             19 => {
-                entity.insert(TrustedId0(d.value.into_optional_uuid()?));
+                entity.insert(TrustedId0(d.value.into_optional_living_entity_reference()?));
             }
             20 => {
-                entity.insert(TrustedId1(d.value.into_optional_uuid()?));
+                entity.insert(TrustedId1(d.value.into_optional_living_entity_reference()?));
             }
             _ => {}
         }
@@ -4749,7 +4752,6 @@ impl Default for HorseMetadataBundle {
                 eating: Eating(false),
                 abstract_horse_standing: AbstractHorseStanding(false),
                 bred: Bred(false),
-                saddled: Saddled(false),
             },
             horse_type_variant: HorseTypeVariant(0),
         }
@@ -5542,7 +5544,6 @@ impl Default for LlamaMetadataBundle {
                     eating: Eating(false),
                     abstract_horse_standing: AbstractHorseStanding(false),
                     bred: Bred(false),
-                    saddled: Saddled(false),
                 },
                 chest: Chest(false),
             },
@@ -5882,7 +5883,7 @@ impl Default for MinecartMetadataBundle {
 }
 
 #[derive(Component, Deref, DerefMut, Clone)]
-pub struct MooshroomKind(pub String);
+pub struct MooshroomKind(pub i32);
 #[derive(Component)]
 pub struct Mooshroom;
 impl Mooshroom {
@@ -5893,7 +5894,7 @@ impl Mooshroom {
         match d.index {
             0..=16 => Cow::apply_metadata(entity, d)?,
             17 => {
-                entity.insert(MooshroomKind(d.value.into_string()?));
+                entity.insert(MooshroomKind(d.value.into_int()?));
             }
             _ => {}
         }
@@ -6041,7 +6042,6 @@ impl Default for MuleMetadataBundle {
                     eating: Eating(false),
                     abstract_horse_standing: AbstractHorseStanding(false),
                     bred: Bred(false),
-                    saddled: Saddled(false),
                 },
                 chest: Chest(false),
             },
@@ -6745,9 +6745,9 @@ impl Default for PhantomMetadataBundle {
 }
 
 #[derive(Component, Deref, DerefMut, Clone)]
-pub struct PigSaddle(pub bool);
-#[derive(Component, Deref, DerefMut, Clone)]
 pub struct PigBoostTime(pub i32);
+#[derive(Component, Deref, DerefMut, Clone)]
+pub struct PigVariant(pub azalea_registry::PigVariant);
 #[derive(Component)]
 pub struct Pig;
 impl Pig {
@@ -6758,10 +6758,10 @@ impl Pig {
         match d.index {
             0..=16 => AbstractAnimal::apply_metadata(entity, d)?,
             17 => {
-                entity.insert(PigSaddle(d.value.into_boolean()?));
+                entity.insert(PigBoostTime(d.value.into_int()?));
             }
             18 => {
-                entity.insert(PigBoostTime(d.value.into_int()?));
+                entity.insert(PigVariant(d.value.into_pig_variant()?));
             }
             _ => {}
         }
@@ -6773,8 +6773,8 @@ impl Pig {
 pub struct PigMetadataBundle {
     _marker: Pig,
     parent: AbstractAnimalMetadataBundle,
-    pig_saddle: PigSaddle,
     pig_boost_time: PigBoostTime,
+    pig_variant: PigVariant,
 }
 impl Default for PigMetadataBundle {
     fn default() -> Self {
@@ -6824,8 +6824,8 @@ impl Default for PigMetadataBundle {
                     abstract_ageable_baby: AbstractAgeableBaby(false),
                 },
             },
-            pig_saddle: PigSaddle(false),
             pig_boost_time: PigBoostTime(0),
+            pig_variant: PigVariant(Default::default()),
         }
     }
 }
@@ -8038,7 +8038,6 @@ impl Default for SkeletonHorseMetadataBundle {
                 eating: Eating(false),
                 abstract_horse_standing: AbstractHorseStanding(false),
                 bred: Bred(false),
-                saddled: Saddled(false),
             },
         }
     }
@@ -8811,8 +8810,6 @@ impl Default for StrayMetadataBundle {
 pub struct StriderBoostTime(pub i32);
 #[derive(Component, Deref, DerefMut, Clone)]
 pub struct Suffocating(pub bool);
-#[derive(Component, Deref, DerefMut, Clone)]
-pub struct StriderSaddle(pub bool);
 #[derive(Component)]
 pub struct Strider;
 impl Strider {
@@ -8828,9 +8825,6 @@ impl Strider {
             18 => {
                 entity.insert(Suffocating(d.value.into_boolean()?));
             }
-            19 => {
-                entity.insert(StriderSaddle(d.value.into_boolean()?));
-            }
             _ => {}
         }
         Ok(())
@@ -8843,7 +8837,6 @@ pub struct StriderMetadataBundle {
     parent: AbstractAnimalMetadataBundle,
     strider_boost_time: StriderBoostTime,
     suffocating: Suffocating,
-    strider_saddle: StriderSaddle,
 }
 impl Default for StriderMetadataBundle {
     fn default() -> Self {
@@ -8895,7 +8888,6 @@ impl Default for StriderMetadataBundle {
             },
             strider_boost_time: StriderBoostTime(0),
             suffocating: Suffocating(false),
-            strider_saddle: StriderSaddle(false),
         }
     }
 }
@@ -9287,7 +9279,6 @@ impl Default for TraderLlamaMetadataBundle {
                         eating: Eating(false),
                         abstract_horse_standing: AbstractHorseStanding(false),
                         bred: Bred(false),
-                        saddled: Saddled(false),
                     },
                     chest: Chest(false),
                 },
@@ -9435,7 +9426,7 @@ impl Default for TropicalFishMetadataBundle {
                 },
                 abstract_fish_from_bucket: AbstractFishFromBucket(false),
             },
-            tropical_fish_type_variant: TropicalFishTypeVariant(0),
+            tropical_fish_type_variant: TropicalFishTypeVariant(Default::default()),
         }
     }
 }
@@ -10613,7 +10604,6 @@ impl Default for ZombieHorseMetadataBundle {
                 eating: Eating(false),
                 abstract_horse_standing: AbstractHorseStanding(false),
                 bred: Bred(false),
-                saddled: Saddled(false),
             },
         }
     }
@@ -11132,7 +11122,6 @@ impl Default for AbstractChestedHorseMetadataBundle {
                 eating: Eating(false),
                 abstract_horse_standing: AbstractHorseStanding(false),
                 bred: Bred(false),
-                saddled: Saddled(false),
             },
             chest: Chest(false),
         }
@@ -11512,7 +11501,6 @@ impl AbstractHorse {
                 entity.insert(Eating(bitfield & 0x10 != 0));
                 entity.insert(AbstractHorseStanding(bitfield & 0x20 != 0));
                 entity.insert(Bred(bitfield & 0x8 != 0));
-                entity.insert(Saddled(bitfield & 0x4 != 0));
             }
             _ => {}
         }
@@ -11528,7 +11516,6 @@ pub struct AbstractHorseMetadataBundle {
     eating: Eating,
     abstract_horse_standing: AbstractHorseStanding,
     bred: Bred,
-    saddled: Saddled,
 }
 impl Default for AbstractHorseMetadataBundle {
     fn default() -> Self {
@@ -11582,7 +11569,6 @@ impl Default for AbstractHorseMetadataBundle {
             eating: Eating(false),
             abstract_horse_standing: AbstractHorseStanding(false),
             bred: Bred(false),
-            saddled: Saddled(false),
         }
     }
 }
@@ -12108,7 +12094,7 @@ impl AbstractTameable {
                 entity.insert(InSittingPose(bitfield & 0x1 != 0));
             }
             18 => {
-                entity.insert(Owneruuid(d.value.into_optional_uuid()?));
+                entity.insert(Owneruuid(d.value.into_optional_living_entity_reference()?));
             }
             _ => {}
         }

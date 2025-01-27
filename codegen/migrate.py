@@ -1,3 +1,4 @@
+import lib.code.item_components
 import lib.code.inventory
 import lib.code.language
 import lib.code.registry
@@ -60,9 +61,12 @@ print('Generating registries...')
 import genregistries
 genregistries.generate(new_version_id)
 
-# print('Generating entity metadata...')
+print('Generating entity metadata...')
 burger_entities_data = new_burger_data[0]['entities']
 lib.code.entity.generate_entity_metadata(burger_entities_data, new_mappings)
+
+print('Generating item components...')
+lib.code.item_components.generate(new_version_id)
 
 print('Finishing touches, setting version in README and formatting code...')
 lib.code.version.set_version_id(new_version_id)

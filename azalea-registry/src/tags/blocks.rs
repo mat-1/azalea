@@ -360,6 +360,7 @@ pub static BEE_ATTRACTIVE: LazyLock<HashSet<Block>> = LazyLock::new(|| {
         Block::MangrovePropagule,
         Block::CherryLeaves,
         Block::PinkPetals,
+        Block::Wildflowers,
         Block::ChorusFlower,
         Block::SporeBlossom,
     ])
@@ -383,9 +384,6 @@ pub static BEEHIVES: LazyLock<HashSet<Block>> =
     LazyLock::new(|| HashSet::from_iter(vec![Block::BeeNest, Block::Beehive]));
 pub static BIG_DRIPLEAF_PLACEABLE: LazyLock<HashSet<Block>> = LazyLock::new(|| {
     HashSet::from_iter(vec![
-        Block::Farmland,
-        Block::Clay,
-        Block::MossBlock,
         Block::Dirt,
         Block::GrassBlock,
         Block::Podzol,
@@ -393,9 +391,11 @@ pub static BIG_DRIPLEAF_PLACEABLE: LazyLock<HashSet<Block>> = LazyLock::new(|| {
         Block::Mycelium,
         Block::RootedDirt,
         Block::MossBlock,
-        Block::PaleMossBlock,
         Block::Mud,
         Block::MuddyMangroveRoots,
+        Block::Farmland,
+        Block::Clay,
+        Block::MossBlock,
     ])
 });
 pub static BIRCH_LOGS: LazyLock<HashSet<Block>> = LazyLock::new(|| {
@@ -1061,6 +1061,7 @@ pub static FLOWERS: LazyLock<HashSet<Block>> = LazyLock::new(|| {
         Block::MangrovePropagule,
         Block::CherryLeaves,
         Block::PinkPetals,
+        Block::Wildflowers,
         Block::ChorusFlower,
         Block::SporeBlossom,
         Block::Dandelion,
@@ -1439,6 +1440,8 @@ pub static INSIDE_STEP_SOUND_BLOCKS: LazyLock<HashSet<Block>> = LazyLock::new(||
         Block::LilyPad,
         Block::SmallAmethystBud,
         Block::PinkPetals,
+        Block::Wildflowers,
+        Block::LeafLitter,
     ])
 });
 pub static INVALID_SPAWN_INSIDE: LazyLock<HashSet<Block>> =
@@ -3001,6 +3004,62 @@ pub static REPLACEABLE: LazyLock<HashSet<Block>> = LazyLock::new(|| {
         Block::HangingRoots,
     ])
 });
+pub static REPLACEABLE_BY_MUSHROOMS: LazyLock<HashSet<Block>> = LazyLock::new(|| {
+    HashSet::from_iter(vec![
+        Block::PaleMossCarpet,
+        Block::ShortGrass,
+        Block::Fern,
+        Block::DeadBush,
+        Block::Vine,
+        Block::GlowLichen,
+        Block::Sunflower,
+        Block::Lilac,
+        Block::RoseBush,
+        Block::Peony,
+        Block::TallGrass,
+        Block::LargeFern,
+        Block::HangingRoots,
+        Block::PitcherPlant,
+        Block::Water,
+        Block::Seagrass,
+        Block::TallSeagrass,
+        Block::BrownMushroom,
+        Block::RedMushroom,
+        Block::BrownMushroomBlock,
+        Block::RedMushroomBlock,
+        Block::WarpedRoots,
+        Block::NetherSprouts,
+        Block::CrimsonRoots,
+        Block::LeafLitter,
+        Block::JungleLeaves,
+        Block::OakLeaves,
+        Block::SpruceLeaves,
+        Block::PaleOakLeaves,
+        Block::DarkOakLeaves,
+        Block::AcaciaLeaves,
+        Block::BirchLeaves,
+        Block::AzaleaLeaves,
+        Block::FloweringAzaleaLeaves,
+        Block::MangroveLeaves,
+        Block::CherryLeaves,
+        Block::Dandelion,
+        Block::OpenEyeblossom,
+        Block::Poppy,
+        Block::BlueOrchid,
+        Block::Allium,
+        Block::AzureBluet,
+        Block::RedTulip,
+        Block::OrangeTulip,
+        Block::WhiteTulip,
+        Block::PinkTulip,
+        Block::OxeyeDaisy,
+        Block::Cornflower,
+        Block::LilyOfTheValley,
+        Block::WitherRose,
+        Block::Torchflower,
+        Block::ClosedEyeblossom,
+    ])
+});
 pub static REPLACEABLE_BY_TREES: LazyLock<HashSet<Block>> = LazyLock::new(|| {
     HashSet::from_iter(vec![
         Block::PaleMossCarpet,
@@ -3023,6 +3082,7 @@ pub static REPLACEABLE_BY_TREES: LazyLock<HashSet<Block>> = LazyLock::new(|| {
         Block::WarpedRoots,
         Block::NetherSprouts,
         Block::CrimsonRoots,
+        Block::LeafLitter,
         Block::JungleLeaves,
         Block::OakLeaves,
         Block::SpruceLeaves,
@@ -3563,6 +3623,8 @@ pub static SWORD_EFFICIENT: LazyLock<HashSet<Block>> = LazyLock::new(|| {
         Block::PitcherCrop,
     ])
 });
+pub static SWORD_INSTANTLY_MINES: LazyLock<HashSet<Block>> =
+    LazyLock::new(|| HashSet::from_iter(vec![Block::Bamboo, Block::BambooSapling]));
 pub static TERRACOTTA: LazyLock<HashSet<Block>> = LazyLock::new(|| {
     HashSet::from_iter(vec![
         Block::Terracotta,

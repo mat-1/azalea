@@ -326,7 +326,11 @@ make_block_states! {
         "south" => South(bool),
         "up" => Up(bool),
         "west" => West(bool),
-        "active" => Active(bool),
+        "creaking_heart_state" => CreakingHeartState {
+            Uprooted,
+            Dormant,
+            Awake,
+        },
         "natural" => Natural(bool),
         "half" => TopBottom {
             Top,
@@ -1714,6 +1718,12 @@ make_block_states! {
             NorthUp,
             SouthUp,
         },
+        "test_block_mode" => TestBlockMode {
+            Start,
+            Log,
+            Fail,
+            Accept,
+        },
         "level" => ComposterLevel {
             _0,
             _1,
@@ -1953,6 +1963,18 @@ make_block_states! {
         },
         "berries" => Berries(bool),
         "flower_amount" => PinkPetalsFlowerAmount {
+            _1,
+            _2,
+            _3,
+            _4,
+        },
+        "flower_amount" => WildflowersFlowerAmount {
+            _1,
+            _2,
+            _3,
+            _4,
+        },
+        "segment_amount" => LeafLitterSegmentAmount {
             _1,
             _2,
             _3,
@@ -2438,8 +2460,8 @@ make_block_states! {
         soul_fire => BlockBehavior::new(), {},
         spawner => BlockBehavior::new().requires_correct_tool_for_drops().strength(5.0, 5.0), {},
         creaking_heart => BlockBehavior::new(), {
-            "active": Active(false),
             "axis": Axis::Y,
+            "creaking_heart_state": CreakingHeartState::Uprooted,
             "natural": Natural(false),
         },
         oak_stairs => BlockBehavior::new().strength(2.0, 3.0), {
@@ -4776,6 +4798,10 @@ make_block_states! {
         jigsaw => BlockBehavior::new().requires_correct_tool_for_drops().strength(-1.0, 3600000.0), {
             "orientation": Orientation::NorthUp,
         },
+        test_block => BlockBehavior::new(), {
+            "test_block_mode": TestBlockMode::Start,
+        },
+        test_instance_block => BlockBehavior::new(), {},
         composter => BlockBehavior::new().strength(0.6, 0.6), {
             "level": ComposterLevel::_0,
         },
@@ -5418,6 +5444,14 @@ make_block_states! {
         pink_petals => BlockBehavior::new(), {
             "facing": FacingCardinal::North,
             "flower_amount": PinkPetalsFlowerAmount::_1,
+        },
+        wildflowers => BlockBehavior::new(), {
+            "facing": FacingCardinal::North,
+            "flower_amount": WildflowersFlowerAmount::_1,
+        },
+        leaf_litter => BlockBehavior::new(), {
+            "facing": FacingCardinal::North,
+            "segment_amount": LeafLitterSegmentAmount::_1,
         },
         moss_block => BlockBehavior::new().strength(0.1, 0.1), {},
         big_dripleaf => BlockBehavior::new().strength(0.1, 0.1), {

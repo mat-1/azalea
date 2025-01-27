@@ -108,6 +108,7 @@ pub static BEE_FOOD: LazyLock<HashSet<Item>> = LazyLock::new(|| {
         Item::MangrovePropagule,
         Item::CherryLeaves,
         Item::PinkPetals,
+        Item::Wildflowers,
         Item::ChorusFlower,
         Item::SporeBlossom,
     ])
@@ -144,6 +145,8 @@ pub static BOATS: LazyLock<HashSet<Item>> = LazyLock::new(|| {
         Item::CherryChestBoat,
     ])
 });
+pub static BOOK_CLONING_TARGET: LazyLock<HashSet<Item>> =
+    LazyLock::new(|| HashSet::from_iter(vec![Item::WritableBook]));
 pub static BOOKSHELF_BOOKS: LazyLock<HashSet<Item>> = LazyLock::new(|| {
     HashSet::from_iter(vec![
         Item::Book,

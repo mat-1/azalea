@@ -47,15 +47,17 @@ pub enum StructureMode {
     Data = 3,
 }
 
-#[derive(AzBuf, Clone, Copy, Debug)]
+#[derive(AzBuf, Clone, Copy, Debug, Default)]
 pub enum Mirror {
+    #[default]
     None = 0,
     LeftRight = 1,
     FrontBack = 2,
 }
 
-#[derive(AzBuf, Clone, Copy, Debug)]
+#[derive(AzBuf, Clone, Copy, Debug, Default)]
 pub enum Rotation {
+    #[default]
     None = 0,
     Clockwise90 = 1,
     Clockwise180 = 2,

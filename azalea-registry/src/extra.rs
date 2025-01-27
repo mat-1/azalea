@@ -7,7 +7,9 @@ use azalea_registry_macros::registry;
 use crate::Registry;
 
 registry! {
+#[derive(Default)]
 enum WolfVariant {
+    #[default]
     Pale => "minecraft:wolf",
     Spotted => "minecraft:wolf_spotted",
     Snowy => "minecraft:wolf_snowy",
@@ -20,11 +22,93 @@ enum WolfVariant {
 }
 }
 
-#[allow(clippy::derivable_impls)]
-impl Default for WolfVariant {
-    fn default() -> Self {
-        WolfVariant::Pale
-    }
+registry! {
+#[derive(Default)]
+enum PigVariant {
+    #[default]
+    Temperate => "minecraft:pig",
+    Warm => "minecraft:warm_pig",
+    Cold => "minecraft:cold_pig",
+}
+}
+
+registry! {
+#[derive(Default)]
+enum FoxVariant {
+    #[default]
+    Red => "minecraft:red",
+    Snow => "minecraft:snow",
+}
+}
+
+registry! {
+enum ParrotVariant {
+    RedBlue => "minecraft:red_blue",
+    Blue => "minecraft:blue",
+    Green => "minecraft:green",
+    YellowBlue => "minecraft:yellow_blue",
+    Gray => "minecraft:gray",
+}
+}
+
+registry! {
+#[derive(Default)]
+enum MooshroomVariant {
+    #[default]
+    Red => "minecraft:red",
+    Brown => "minecraft:brown",
+}
+}
+
+registry! {
+#[derive(Default)]
+enum RabbitVariant {
+    #[default]
+    Brown => "minecraft:brown",
+    White => "minecraft:white",
+    Black => "minecraft:black",
+    WhiteSplotched => "minecraft:white_splotched",
+    Gold => "minecraft:gold",
+    Salt => "minecraft:salt",
+    Evil => "minecraft:evil",
+}
+}
+
+registry! {
+#[derive(Default)]
+enum HorseVariant {
+    #[default]
+    White => "minecraft:white",
+    Creamy => "minecraft:creamy",
+    Chestnut => "minecraft:chestnut",
+    Brown => "minecraft:brown",
+    Black => "minecraft:black",
+    Gray => "minecraft:gray",
+    DarkBrown => "minecraft:dark_brown",
+}
+}
+
+registry! {
+#[derive(Default)]
+enum LlamaVariant {
+    #[default]
+    Creamy => "minecraft:creamy",
+    White => "minecraft:white",
+    Brown => "minecraft:brown",
+    Gray => "minecraft:gray",
+}
+}
+
+registry! {
+#[derive(Default)]
+enum AxolotlVariant {
+    #[default]
+    Lucy => "minecraft:lucy",
+    Wild => "minecraft:wild",
+    Gold => "minecraft:gold",
+    Cyan => "minecraft:cyan",
+    Blue => "minecraft:blue",
+}
 }
 
 registry! {

@@ -430,7 +430,7 @@ impl From<EntityDataValue> for UpdateMetadataError {
                             default = f'BlockPos::new{default}'
                         elif type_name == 'OptionalBlockPos':  # Option<BlockPos>
                             default = f'Some(BlockPos::new{default})' if default != 'Empty' else 'None'
-                        elif type_name == 'OptionalUuid':
+                        elif type_name == 'OptionalLivingEntityReference':
                             default = f'Some(uuid::uuid!({default}))' if default != 'Empty' else 'None'
                         elif type_name == 'OptionalUnsignedInt':
                             default = f'OptionalUnsignedInt(Some({default}))' if default != 'Empty' else 'OptionalUnsignedInt(None)'

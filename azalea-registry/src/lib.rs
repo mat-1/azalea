@@ -1177,6 +1177,8 @@ enum Block {
     WarpedWallSign => "minecraft:warped_wall_sign",
     StructureBlock => "minecraft:structure_block",
     Jigsaw => "minecraft:jigsaw",
+    TestBlock => "minecraft:test_block",
+    TestInstanceBlock => "minecraft:test_instance_block",
     Composter => "minecraft:composter",
     Target => "minecraft:target",
     BeeNest => "minecraft:bee_nest",
@@ -1359,6 +1361,8 @@ enum Block {
     FloweringAzalea => "minecraft:flowering_azalea",
     MossCarpet => "minecraft:moss_carpet",
     PinkPetals => "minecraft:pink_petals",
+    Wildflowers => "minecraft:wildflowers",
+    LeafLitter => "minecraft:leaf_litter",
     MossBlock => "minecraft:moss_block",
     BigDripleaf => "minecraft:big_dripleaf",
     BigDripleafStem => "minecraft:big_dripleaf_stem",
@@ -1463,6 +1467,8 @@ enum BlockEntityKind {
     Crafter => "minecraft:crafter",
     TrialSpawner => "minecraft:trial_spawner",
     Vault => "minecraft:vault",
+    TestBlock => "minecraft:test_block",
+    TestInstanceBlock => "minecraft:test_instance_block",
 }
 }
 
@@ -1566,6 +1572,7 @@ enum CommandArgumentKind {
     ResourceOrTagKey => "minecraft:resource_or_tag_key",
     Resource => "minecraft:resource",
     ResourceKey => "minecraft:resource_key",
+    ResourceSelector => "minecraft:resource_selector",
     TemplateMirror => "minecraft:template_mirror",
     TemplateRotation => "minecraft:template_rotation",
     Heightmap => "minecraft:heightmap",
@@ -2242,6 +2249,8 @@ enum Item {
     SugarCane => "minecraft:sugar_cane",
     Kelp => "minecraft:kelp",
     PinkPetals => "minecraft:pink_petals",
+    Wildflowers => "minecraft:wildflowers",
+    LeafLitter => "minecraft:leaf_litter",
     MossCarpet => "minecraft:moss_carpet",
     MossBlock => "minecraft:moss_block",
     PaleMossCarpet => "minecraft:pale_moss_carpet",
@@ -2812,6 +2821,8 @@ enum Item {
     BambooChestRaft => "minecraft:bamboo_chest_raft",
     StructureBlock => "minecraft:structure_block",
     Jigsaw => "minecraft:jigsaw",
+    TestBlock => "minecraft:test_block",
+    TestInstanceBlock => "minecraft:test_instance_block",
     TurtleHelmet => "minecraft:turtle_helmet",
     TurtleScute => "minecraft:turtle_scute",
     ArmadilloScute => "minecraft:armadillo_scute",
@@ -3496,6 +3507,7 @@ enum MemoryModuleKind {
     NearestPlayers => "minecraft:nearest_players",
     NearestVisiblePlayer => "minecraft:nearest_visible_player",
     NearestVisibleTargetablePlayer => "minecraft:nearest_visible_targetable_player",
+    NearestVisibleTargetablePlayers => "minecraft:nearest_visible_targetable_players",
     WalkTarget => "minecraft:walk_target",
     LookTarget => "minecraft:look_target",
     AttackTarget => "minecraft:attack_target",
@@ -3738,6 +3750,7 @@ enum ParticleKind {
     Infested => "minecraft:infested",
     CherryLeaves => "minecraft:cherry_leaves",
     PaleOakLeaves => "minecraft:pale_oak_leaves",
+    TintedLeaves => "minecraft:tinted_leaves",
     SculkSoul => "minecraft:sculk_soul",
     SculkCharge => "minecraft:sculk_charge",
     SculkChargePop => "minecraft:sculk_charge_pop",
@@ -4771,6 +4784,11 @@ enum SoundEvent {
     EntityIllusionerPrepareBlindness => "minecraft:entity.illusioner.prepare_blindness",
     EntityIllusionerPrepareMirror => "minecraft:entity.illusioner.prepare_mirror",
     ItemInkSacUse => "minecraft:item.ink_sac.use",
+    BlockIronBreak => "minecraft:block.iron.break",
+    BlockIronStep => "minecraft:block.iron.step",
+    BlockIronPlace => "minecraft:block.iron.place",
+    BlockIronHit => "minecraft:block.iron.hit",
+    BlockIronFall => "minecraft:block.iron.fall",
     BlockIronDoorClose => "minecraft:block.iron_door.close",
     BlockIronDoorOpen => "minecraft:block.iron_door.open",
     EntityIronGolemAttack => "minecraft:entity.iron_golem.attack",
@@ -4803,6 +4821,11 @@ enum SoundEvent {
     BlockLavaAmbient => "minecraft:block.lava.ambient",
     BlockLavaExtinguish => "minecraft:block.lava.extinguish",
     BlockLavaPop => "minecraft:block.lava.pop",
+    BlockLeafLitterBreak => "minecraft:block.leaf_litter.break",
+    BlockLeafLitterStep => "minecraft:block.leaf_litter.step",
+    BlockLeafLitterPlace => "minecraft:block.leaf_litter.place",
+    BlockLeafLitterHit => "minecraft:block.leaf_litter.hit",
+    BlockLeafLitterFall => "minecraft:block.leaf_litter.fall",
     EntityLeashKnotBreak => "minecraft:entity.leash_knot.break",
     EntityLeashKnotPlace => "minecraft:entity.leash_knot.place",
     BlockLeverClick => "minecraft:block.lever.click",
@@ -6041,6 +6064,7 @@ enum WorldgenTreeDecoratorKind {
     Beehive => "minecraft:beehive",
     AlterGround => "minecraft:alter_ground",
     AttachedToLeaves => "minecraft:attached_to_leaves",
+    PlaceOnGround => "minecraft:place_on_ground",
 }
 }
 
@@ -6265,6 +6289,7 @@ enum BlockKind {
     Lantern => "minecraft:lantern",
     LavaCauldron => "minecraft:lava_cauldron",
     LayeredCauldron => "minecraft:layered_cauldron",
+    LeafLitter => "minecraft:leaf_litter",
     Leaves => "minecraft:leaves",
     Lectern => "minecraft:lectern",
     Lever => "minecraft:lever",
@@ -6290,8 +6315,7 @@ enum BlockKind {
     Nylium => "minecraft:nylium",
     Observer => "minecraft:observer",
     Piglinwallskull => "minecraft:piglinwallskull",
-    ParticleLeaves => "minecraft:particle_leaves",
-    PinkPetals => "minecraft:pink_petals",
+    FlowerBed => "minecraft:flower_bed",
     PistonBase => "minecraft:piston_base",
     PistonHead => "minecraft:piston_head",
     PitcherCrop => "minecraft:pitcher_crop",
@@ -6354,6 +6378,8 @@ enum BlockKind {
     TallGrass => "minecraft:tall_grass",
     TallSeagrass => "minecraft:tall_seagrass",
     Target => "minecraft:target",
+    Test => "minecraft:test",
+    TestInstance => "minecraft:test_instance",
     TintedGlass => "minecraft:tinted_glass",
     Tnt => "minecraft:tnt",
     TorchflowerCrop => "minecraft:torchflower_crop",
@@ -6515,6 +6541,7 @@ enum DataComponentKind {
     UseCooldown => "minecraft:use_cooldown",
     DamageResistant => "minecraft:damage_resistant",
     Tool => "minecraft:tool",
+    Weapon => "minecraft:weapon",
     Enchantable => "minecraft:enchantable",
     Equippable => "minecraft:equippable",
     Repairable => "minecraft:repairable",
@@ -6530,6 +6557,7 @@ enum DataComponentKind {
     ChargedProjectiles => "minecraft:charged_projectiles",
     BundleContents => "minecraft:bundle_contents",
     PotionContents => "minecraft:potion_contents",
+    PotionDurationScale => "minecraft:potion_duration_scale",
     SuspiciousStewEffects => "minecraft:suspicious_stew_effects",
     WritableBookContent => "minecraft:writable_book_content",
     WrittenBookContent => "minecraft:written_book_content",
@@ -6555,6 +6583,27 @@ enum DataComponentKind {
     Bees => "minecraft:bees",
     Lock => "minecraft:lock",
     ContainerLoot => "minecraft:container_loot",
+    VillagerVariant => "minecraft:villager/variant",
+    WolfVariant => "minecraft:wolf/variant",
+    WolfCollar => "minecraft:wolf/collar",
+    FoxVariant => "minecraft:fox/variant",
+    SalmonSize => "minecraft:salmon/size",
+    ParrotVariant => "minecraft:parrot/variant",
+    TropicalFishPattern => "minecraft:tropical_fish/pattern",
+    TropicalFishBaseColor => "minecraft:tropical_fish/base_color",
+    TropicalFishPatternColor => "minecraft:tropical_fish/pattern_color",
+    MooshroomVariant => "minecraft:mooshroom/variant",
+    RabbitVariant => "minecraft:rabbit/variant",
+    PigVariant => "minecraft:pig/variant",
+    FrogVariant => "minecraft:frog/variant",
+    HorseVariant => "minecraft:horse/variant",
+    PaintingVariant => "minecraft:painting/variant",
+    LlamaVariant => "minecraft:llama/variant",
+    AxolotlVariant => "minecraft:axolotl/variant",
+    CatVariant => "minecraft:cat/variant",
+    CatCollar => "minecraft:cat/collar",
+    SheepColor => "minecraft:sheep/color",
+    ShulkerColor => "minecraft:shulker/color",
 }
 }
 
@@ -6566,20 +6615,6 @@ enum EntitySubPredicateKind {
     Slime => "minecraft:slime",
     Raider => "minecraft:raider",
     Sheep => "minecraft:sheep",
-    Axolotl => "minecraft:axolotl",
-    Fox => "minecraft:fox",
-    Mooshroom => "minecraft:mooshroom",
-    Rabbit => "minecraft:rabbit",
-    Horse => "minecraft:horse",
-    Llama => "minecraft:llama",
-    Villager => "minecraft:villager",
-    Parrot => "minecraft:parrot",
-    Salmon => "minecraft:salmon",
-    TropicalFish => "minecraft:tropical_fish",
-    Painting => "minecraft:painting",
-    Cat => "minecraft:cat",
-    Frog => "minecraft:frog",
-    Wolf => "minecraft:wolf",
 }
 }
 
@@ -6819,5 +6854,41 @@ enum SlotDisplay {
     SmithingTrim => "minecraft:smithing_trim",
     WithRemainder => "minecraft:with_remainder",
     Composite => "minecraft:composite",
+}
+}
+
+registry! {
+enum TicketKind {
+    Start => "minecraft:start",
+    Dragon => "minecraft:dragon",
+    PlayerLoading => "minecraft:player_loading",
+    PlayerSimulation => "minecraft:player_simulation",
+    Forced => "minecraft:forced",
+    Portal => "minecraft:portal",
+    EnderPearl => "minecraft:ender_pearl",
+    Unknown => "minecraft:unknown",
+}
+}
+
+registry! {
+enum TestEnvironmentDefinitionKind {
+    AllOf => "minecraft:all_of",
+    GameRules => "minecraft:game_rules",
+    TimeOfDay => "minecraft:time_of_day",
+    Raining => "minecraft:raining",
+    Function => "minecraft:function",
+}
+}
+
+registry! {
+enum TestFunction {
+    AlwaysPass => "minecraft:always_pass",
+}
+}
+
+registry! {
+enum TestInstanceKind {
+    BlockBased => "minecraft:block_based",
+    Function => "minecraft:function",
 }
 }

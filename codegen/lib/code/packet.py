@@ -14,6 +14,8 @@ MOJMAP_TO_AZALEA_STATE_NAME_MAPPING = {
 }
 AZALEA_TO_MOJMAP_STATE_NAME_MAPPING = {v: k for k, v in MOJMAP_TO_AZALEA_STATE_NAME_MAPPING.items()}
 
+PACKETS_DIR = '../azalea-protocol/src/packets'
+
 def generate_packet(packets_report, packet_name, direction, state):
     mojmap_state = AZALEA_TO_MOJMAP_STATE_NAME_MAPPING.get(state, state)
     _packet_report = packets_report[mojmap_state][direction]['minecraft:' + packet_name]
@@ -24,7 +26,7 @@ def generate_packet(packets_report, packet_name, direction, state):
     packet_derive_name = f'{to_camel_case(direction)}{to_camel_case(state)}Packet'
 
     packet_struct_name = to_camel_case(f'{direction}_{packet_name}')
-    packet_module_name = f'{direction[0]}_{packet_name}'
+    packet_module_name = get_packet_module_name(packet_name, direction)
 
     code.append(f'use azalea_buf::AzBuf;')
     code.append(f'use azalea_protocol_macros::{packet_derive_name};')
@@ -42,11 +44,16 @@ def generate_packet(packets_report, packet_name, direction, state):
 
     # this won't handle writing to the packets/{state}/mod.rs file since we'd need to know the full packet list
 
-def set_packets(packets_report):
+def get_packet_module_name(packet_name: str, direction: str):
+    return f'{direction[0]}_{packet_name}'
+
+def set_packets(packets_report):    
     for mojmap_state in packets_report:
         state = MOJMAP_TO_AZALEA_STATE_NAME_MAPPING.get(mojmap_state, mojmap_state)
-        mod_rs_dir = get_dir_location(
-            f'../azalea-protocol/src/packets/{state}/mod.rs')
+
+        expected_packet_module_names = set()
+        state_dir = get_dir_location(f'{PACKETS_DIR}/{state}')
+        mod_rs_dir = get_dir_location(f'{state_dir}/mod.rs')
 
         serverbound_packets = packet_direction_report_to_packet_names(packets_report[mojmap_state]['serverbound'])
         clientbound_packets = packet_direction_report_to_packet_names(packets_report[mojmap_state].get('clientbound', {}))
@@ -61,16 +68,35 @@ def set_packets(packets_report):
         code.append('    Clientbound => [')
         for packet_id, packet_name in enumerate(clientbound_packets):
             code.append(f'        {packet_name}, // {padded_hex(packet_id)}')
+            expected_packet_module_names.add(get_packet_module_name(packet_name, 'clientbound'))
         code.append('    ],')
         code.append('    Serverbound => [')
         for packet_id, packet_name in enumerate(serverbound_packets):
             code.append(f'        {packet_name}, // {padded_hex(packet_id)}')
+            expected_packet_module_names.add(get_packet_module_name(packet_name, 'serverbound'))
         code.append('    ]')
         code.append(');')
         code.append('')
 
         with open(mod_rs_dir, 'w') as f:
             f.write('\n'.join(code))
+
+        existing_packet_module_names = set()
+        # iterate over the directory
+        for file in os.listdir(state_dir):
+            if file.endswith('.rs') and file != 'mod.rs':
+                existing_packet_module_names.add(file[:-len('.rs')])
+        for packet_module_name in expected_packet_module_names - existing_packet_module_names:
+            direction = None
+            if packet_module_name.startswith('c_'):
+                direction = 'clientbound'
+            elif packet_module_name.startswith('s_'):
+                direction = 'serverbound'
+            else:
+                raise Exception(f'Invalid packet module name: {packet_module_name}')
+            packet = packet_module_name[2:]
+            generate_packet(packets_report, packet, direction, state)
+
 
 def packet_direction_report_to_packet_names(report):
     name_to_id = {}
@@ -82,8 +108,7 @@ def packet_direction_report_to_packet_names(report):
     return names_sorted
 
 def get_packets(direction: str, state: str):
-    mod_rs_dir = get_dir_location(
-        f'../azalea-protocol/src/packets/{state}/mod.rs')
+    mod_rs_dir = get_dir_location(f'{PACKETS_DIR}/{state}/mod.rs')
     with open(mod_rs_dir, 'r') as f:
         mod_rs = f.read().splitlines()
 

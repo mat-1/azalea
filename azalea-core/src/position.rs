@@ -392,6 +392,18 @@ impl BlockPos {
     }
 }
 
+/// Similar to [`BlockPos`] but it's serialized as 3 varints instead of one
+/// 64-bit integer, so it can represent a bigger range of numbers.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, AzBuf)]
+pub struct Vec3i {
+    #[var]
+    pub x: i32,
+    #[var]
+    pub y: i32,
+    #[var]
+    pub z: i32,
+}
+
 /// Chunk coordinates are used to represent where a chunk is in the world. You
 /// can convert the x and z to block coordinates by multiplying them by 16.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
